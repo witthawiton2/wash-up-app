@@ -1,0 +1,215 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --primary-blue: #1e40af;
+  --secondary-blue: #3b82f6;
+  --accent-blue: #2563eb;
+  --light-blue: #dbeafe;
+  --bg-gradient-start: #eff6ff;
+  --bg-gradient-end: #ffffff;
+  --card-bg: #ffffff;
+  --card-border: #e2e8f0;
+  --table-header-bg: #f8fafc;
+  --table-hover: #f1f5f9;
+  --sidebar-bg: #1e293b;
+  --sidebar-text: #cbd5e1;
+  --sidebar-active: #3b82f6;
+  --sidebar-hover: #334155;
+}
+
+html.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --bg-gradient-start: #0f172a;
+  --bg-gradient-end: #0a0a0a;
+  --card-bg: #1e293b;
+  --card-border: #334155;
+  --table-header-bg: #1e293b;
+  --table-hover: #334155;
+  --sidebar-bg: #0f172a;
+  --sidebar-text: #94a3b8;
+  --sidebar-active: #2563eb;
+  --sidebar-hover: #1e293b;
+}
+
+body {
+  color: var(--foreground);
+  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+  min-height: 100vh;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Button styles */
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+  color: white;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(30, 64, 175, 0.3);
+  min-height: 44px;
+}
+
+.btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Card styles */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Table styles */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.data-table th {
+  background: var(--table-header-bg);
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.data-table td {
+  padding: 0.625rem 0.75rem;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.data-table tbody tr:hover {
+  background: var(--table-hover);
+}
+
+/* Status badge */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge-blue {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge-green {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge-yellow {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.badge-red {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badge-gray {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Filter tabs */
+.filter-tab {
+  padding: 0.5rem 0.875rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: #64748b;
+  min-height: 40px;
+}
+
+.filter-tab:hover {
+  border-color: var(--secondary-blue);
+  color: var(--secondary-blue);
+}
+
+.filter-tab.active {
+  background: var(--secondary-blue);
+  color: white;
+  border-color: var(--secondary-blue);
+}
+
+/* Mobile responsive: hide columns */
+.hide-mobile {
+  display: table-cell;
+}
+
+/* Action buttons touch-friendly */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.8125rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 0.875rem;
+  }
+
+  .data-table th {
+    padding: 0.5rem;
+    font-size: 0.6875rem;
+  }
+
+  .data-table td {
+    padding: 0.5rem;
+    font-size: 0.8125rem;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .filter-tab {
+    padding: 0.375rem 0.625rem;
+    font-size: 0.75rem;
+  }
+
+  .btn-primary {
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+  }
+}

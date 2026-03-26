@@ -33,6 +33,7 @@ model Customer {
   email      String?
   status       String   @default("approved")
   renewPending Boolean  @default(false)
+  renewSlipUrl String?
   createdAt    DateTime @default(now())
   updatedAt  DateTime @updatedAt
   orders     Order[]

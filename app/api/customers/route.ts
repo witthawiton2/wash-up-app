@@ -25,6 +25,7 @@ export async function GET() {
       customerCode: c.customerCode || "",
       status: c.status || "approved",
       renewPending: c.renewPending || false,
+      renewSlipUrl: c.renewSlipUrl || "",
     }));
 
     return NextResponse.json(formatted);

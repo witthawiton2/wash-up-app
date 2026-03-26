@@ -33,6 +33,7 @@ export default function DeliveryPage() {
   const [deliveries, setDeliveries] = useState<DeliveryOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("ทั้งหมด");
+  const [searchQuery, setSearchQuery] = useState("");
   const [completeTarget, setCompleteTarget] = useState<DeliveryOrder | null>(null);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
@@ -58,10 +59,21 @@ export default function DeliveryPage() {
     fetchDeliveries();
   }, [fetchDeliveries]);
 
-  const filtered =
-    activeFilter === "ทั้งหมด"
+  const filtered = (() => {
+    let list = activeFilter === "ทั้งหมด"
       ? deliveries
       : deliveries.filter((d) => d.status === activeFilter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((d) =>
+        d.orderId.toLowerCase().includes(q) ||
+        d.customer.toLowerCase().includes(q) ||
+        (d.phone || "").includes(q) ||
+        (d.address || "").toLowerCase().includes(q)
+      );
+    }
+    return list;
+  })();
 
   const openComplete = (d: DeliveryOrder) => {
     setCompleteTarget(d);
@@ -163,6 +175,14 @@ export default function DeliveryPage() {
           </button>
         ))}
       </div>
+
+      <input
+        type="text"
+        placeholder="ค้นหา เลขออเดอร์ / ชื่อลูกค้า / เบอร์โทร..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
 
       {/* Mobile: Card Layout */}
       <div className="sm:hidden space-y-3">

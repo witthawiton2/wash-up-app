@@ -7,6 +7,7 @@ interface LaundryItem {
   name: string;
   qty: number;
   price: number;
+  svcId?: number;
 }
 
 interface LaundryOrder {
@@ -69,6 +70,7 @@ export default function LaundryPage() {
   const [serviceItems, setServiceItems] = useState<ServiceItemOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("ทั้งหมด");
+  const [searchQuery, setSearchQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<{
     orderId: string;
@@ -142,23 +144,33 @@ export default function LaundryPage() {
     const price = isFreeInPackage ? 0 : (svc?.price || 0);
     const newItems = editing.items.map((item, i) =>
       i === index
-        ? { ...item, name: svc?.name || "", price }
+        ? { ...item, name: svc?.name || "", price, svcId: svc?.id }
         : item
     );
     setEditing({ ...editing, items: newItems });
   };
 
-  const filtered =
-    activeFilter === "ทั้งหมด"
+  const filtered = (() => {
+    let list = activeFilter === "ทั้งหมด"
       ? orders
       : orders.filter((o) => o.status === activeFilter);
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((o) =>
+        o.orderId.toLowerCase().includes(q) ||
+        o.customer.toLowerCase().includes(q) ||
+        (o.phone || "").includes(q)
+      );
+    }
+    return list;
+  })();
 
   const generateOrderId = () => {
     const maxNum = orders.reduce((max, o) => {
-      const num = parseInt(o.orderId.replace("R", ""));
+      const num = parseInt(o.orderId.replace(/\D/g, ""));
       return isNaN(num) ? max : Math.max(max, num);
     }, 0);
-    return "R" + (maxNum + 1);
+    return String(maxNum + 1).padStart(6, "0");
   };
 
   const openAdd = () => {
@@ -533,7 +545,9 @@ ${o.discount > 0 ? `
     let total = 0;
     for (const item of items) {
       if (!item.name) continue;
-      const svc = serviceItems.find((s) => s.name === item.name);
+      const svc = item.svcId
+        ? serviceItems.find((s) => s.id === item.svcId)
+        : serviceItems.find((s) => s.name === item.name);
       if (svc?.inPackage) {
         total += item.qty * svc.packageDeduction;
       }
@@ -565,6 +579,14 @@ ${o.discount > 0 ? `
           </button>
         ))}
       </div>
+
+      <input
+        type="text"
+        placeholder="ค้นหา เลขออเดอร์ / ชื่อลูกค้า / เบอร์โทร..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
 
       {/* Mobile: Card Layout */}
       <div className="sm:hidden space-y-3">
@@ -836,7 +858,7 @@ ${o.discount > 0 ? `
                   <div className="col-span-5">
                     <select
                       className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      value={serviceItems.find((s) => s.name === item.name)?.id || ""}
+                      value={item.svcId || ""}
                       onChange={(e) =>
                         handleSelectServiceItem(index, e.target.value)
                       }

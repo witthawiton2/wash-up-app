@@ -92,6 +92,7 @@ export default function LaundryPage() {
   const [deleteTarget, setDeleteTarget] = useState<LaundryOrder | null>(null);
   const [sending, setSending] = useState<string | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Record<number, string>>({});
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -189,6 +190,7 @@ export default function LaundryPage() {
     setEditingOrderId(null);
     setCustomerSearch("");
     setShowCustomerDropdown(false);
+    setSelectedCategory({});
     setModalOpen(true);
   };
 
@@ -212,6 +214,15 @@ export default function LaundryPage() {
     setCustomerSearch(o.customer);
     setShowCustomerDropdown(false);
     setEditingOrderId(o.orderId);
+    // Auto-select category for each existing item
+    const catMap: Record<number, string> = {};
+    o.items.forEach((item, idx) => {
+      if (item.svcId) {
+        const svc = serviceItems.find((s) => s.id === item.svcId);
+        if (svc) catMap[idx] = svc.category;
+      }
+    });
+    setSelectedCategory(catMap);
     setModalOpen(true);
   };
 
@@ -855,24 +866,60 @@ ${o.discount > 0 ? `
                   key={index}
                   className="grid grid-cols-12 gap-1.5 sm:gap-2 items-center bg-slate-50 rounded-lg p-2"
                 >
-                  <div className="col-span-5">
+                  <div className="col-span-5 space-y-1">
+                    <div className="flex flex-wrap gap-1">
+                      {Array.from(new Set(serviceItems.map((s) => s.category))).map((cat) => {
+                        const shortNames: Record<string, string> = {
+                          "รายการในแพ็คเกจ": "แพ็คเกจ",
+                          "รายการซักอบรีด": "ซักอบรีด",
+                          "รายการซักแห้ง": "ซักแห้ง",
+                          "รายการรีดอย่างเดียว": "รีด",
+                          "ซัก อบ พับ": "ซักพับ",
+                        };
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCategory((prev) => ({ ...prev, [index]: cat }));
+                              // Reset item selection when changing category
+                              if (selectedCategory[index] !== cat) {
+                                const newItems = editing.items.map((it, i) =>
+                                  i === index ? { ...emptyItem } : it
+                                );
+                                setEditing({ ...editing, items: newItems });
+                              }
+                            }}
+                            className={`px-2 py-0.5 rounded text-xs font-medium border transition-colors ${
+                              selectedCategory[index] === cat
+                                ? "bg-blue-500 text-white border-blue-500"
+                                : "bg-white text-slate-600 border-slate-300 hover:border-blue-400"
+                            }`}
+                          >
+                            {shortNames[cat] || cat}
+                          </button>
+                        );
+                      })}
+                    </div>
                     <select
                       className="w-full px-2 py-1.5 rounded border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={item.svcId || ""}
                       onChange={(e) =>
                         handleSelectServiceItem(index, e.target.value)
                       }
+                      disabled={!selectedCategory[index]}
                     >
-                      <option value="">-- เลือกรายการ --</option>
-                      {Array.from(new Set(serviceItems.map((s) => s.category))).map((cat) => (
-                        <optgroup key={cat} label={cat}>
-                          {serviceItems.filter((s) => s.category === cat).map((s) => (
+                      <option value="">
+                        {selectedCategory[index] ? "-- เลือกรายการ --" : "-- เลือกหมวดก่อน --"}
+                      </option>
+                      {selectedCategory[index] &&
+                        serviceItems
+                          .filter((s) => s.category === selectedCategory[index])
+                          .map((s) => (
                             <option key={s.id} value={`${s.id}`}>
                               {s.name} ({s.price}฿)
                             </option>
                           ))}
-                        </optgroup>
-                      ))}
                     </select>
                   </div>
                   <div className="col-span-2">

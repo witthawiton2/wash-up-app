@@ -94,6 +94,7 @@ model Package {
 model ServiceItem {
   id               Int      @id @default(autoincrement())
   name             String
+  nameEn           String?
   price            Float    @default(0)
   category         String   @default("รายการซักอบรีด")
   note             String?

@@ -53,7 +53,9 @@ export async function GET(
       if (dbOrder) {
         order = {
           id: dbOrder.orderId,
-          customer: dbOrder.customer?.name || dbOrder.walkInName || "",
+          customer: dbOrder.customer
+            ? `${dbOrder.customer.customerCode ? dbOrder.customer.customerCode + " " : ""}${dbOrder.customer.name}`
+            : dbOrder.walkInName || "",
           phone: dbOrder.customer?.phone || "",
           items: dbOrder.items.map((i) => ({
             name: i.itemName,
@@ -64,6 +66,9 @@ export async function GET(
             day: "2-digit",
             month: "2-digit",
             year: "numeric",
+          }) + " " + dbOrder.orderDate.toLocaleTimeString("th-TH", {
+            hour: "2-digit",
+            minute: "2-digit",
           }),
           hangersOwned: dbOrder.hangersOwned,
           hangersBought: dbOrder.hangersBought,
@@ -167,7 +172,7 @@ export async function GET(
               color: "#2563eb",
             }}
           >
-            ใบแจ้งหนี้
+            Invoice
           </div>
           {isEdited && (
             <div
@@ -192,8 +197,9 @@ export async function GET(
             marginBottom: 14,
           }}
         >
-          <div style={rowStyle}>
+          <div style={{ ...rowStyle, justifyContent: "space-between" }}>
             <span>รหัสใบสั่งซื้อ: {order.id}</span>
+            <span>วันที่: {order.date}</span>
           </div>
           <div style={rowStyle}>
             <span>ชื่อลูกค้า: {order.customer}</span>
@@ -202,14 +208,19 @@ export async function GET(
             <span>โทรศัพท์: {order.phone || "-"}</span>
           </div>
           <div style={rowStyle}>
-            <span>วันที่: {order.date}</span>
-          </div>
-          <div style={rowStyle}>
             <span>วันที่หมดอายุ: {order.packageExpiry || "-"}</span>
           </div>
-          <div style={rowStyle}>
+          <div style={{
+            ...rowStyle,
+            ...((order.packageRemaining ?? 0) <= 0 ? { color: "#dc2626", fontWeight: 700 } : {}),
+          }}>
             <span>จำนวนที่เหลือในแพ็คเกจ: {order.packageRemaining ?? 0}</span>
           </div>
+          {(order.packageRemaining ?? 0) <= 0 && (
+            <div style={{ ...rowStyle, color: "#dc2626", fontWeight: 700, fontSize: 14, marginTop: 4 }}>
+              <span>⚠️ ยอดแพ็คเกจหมดแล้ว กรุณาต่ออายุแพ็คเกจ</span>
+            </div>
+          )}
         </div>
 
         {/* Table */}

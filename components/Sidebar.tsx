@@ -12,7 +12,7 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "\u{1F3E0}", roles: ["admin", "staff", "driver"] },
+  { href: "/dashboard", label: "Dashboard", icon: "\u{1F3E0}", roles: ["admin"] },
   { href: "/dashboard/customer", label: "Customer", icon: "\u{1F464}", roles: ["admin", "staff"] },
   { href: "/dashboard/delivery", label: "Delivery", icon: "\u{1F69A}", roles: ["admin", "driver"] },
   { href: "/dashboard/laundry", label: "Laundry", icon: "\u{1F455}", roles: ["admin", "staff"] },

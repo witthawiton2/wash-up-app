@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 interface ChartData {
   date: string;
@@ -38,6 +40,15 @@ const statusColors: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (user && user.role !== "admin") {
+      router.replace("/dashboard/laundry");
+    }
+  }, [user, router]);
+
   const [totals, setTotals] = useState({
     totalOrders: 0,
     totalRevenue: 0,

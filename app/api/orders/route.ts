@@ -16,7 +16,9 @@ export async function GET() {
       id: o.id,
       orderId: o.orderId,
       customerId: o.customerId || 0,
-      customer: o.customer?.name || o.walkInName || "",
+      customer: o.customer
+        ? `${o.customer.customerCode ? o.customer.customerCode + " " : ""}${o.customer.name}`
+        : o.walkInName || "",
       phone: o.customer?.phone || "",
       address: o.customer?.address || "",
       lineUserId: o.customer?.lineUserId || "",
@@ -36,6 +38,9 @@ export async function GET() {
         day: "2-digit",
         month: "2-digit",
         year: "numeric",
+      }) + " " + o.orderDate.toLocaleTimeString("th-TH", {
+        hour: "2-digit",
+        minute: "2-digit",
       }),
     }));
 

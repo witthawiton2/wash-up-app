@@ -6,6 +6,7 @@ import Modal, { ConfirmDelete } from "@/components/Modal";
 interface ServiceItem {
   id: number;
   name: string;
+  nameEn: string;
   price: number;
   category: string;
   note: string;
@@ -25,6 +26,7 @@ const categoryBadge: Record<string, string> = {
 const emptyItem: ServiceItem = {
   id: 0,
   name: "",
+  nameEn: "",
   price: 0,
   category: "รายการซักอบรีด",
   note: "",
@@ -83,6 +85,7 @@ export default function ServicesPage() {
         body: JSON.stringify({
           id: isEdit ? editing.id : undefined,
           name: editing.name,
+          nameEn: editing.nameEn,
           price: editing.price,
           category: editing.category,
           note: editing.note,
@@ -149,7 +152,7 @@ export default function ServicesPage() {
               ) : (
                 filtered.map((item) => (
                   <tr key={item.id}>
-                    <td className="font-medium">{item.name}</td>
+                    <td className="font-medium">{item.name}{item.nameEn ? ` (${item.nameEn})` : ""}</td>
                     <td className="text-right">{item.price.toLocaleString()}</td>
                     <td><span className={`badge ${categoryBadge[item.category] || "badge-gray"}`}>{item.category}</span></td>
                     <td className="text-slate-500 text-xs hide-mobile">{item.note || "-"}</td>
@@ -170,6 +173,10 @@ export default function ServicesPage() {
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">ชื่อรายการ</label>
             <input className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="เช่น เสื้อ, กางเกง" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">ชื่อภาษาอังกฤษ</label>
+            <input className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={editing.nameEn} onChange={(e) => setEditing({ ...editing, nameEn: e.target.value })} placeholder="e.g. Shirt, Pants" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">ราคา (฿)</label>

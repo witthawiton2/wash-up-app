@@ -20,7 +20,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, price, category, note, inPackage, packageDeduction } = body;
+    const { name, nameEn, price, category, note, inPackage, packageDeduction } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     const item = await prisma.serviceItem.create({
       data: {
         name: name.trim(),
+        nameEn: nameEn?.trim() || null,
         price: price || 0,
         category: category || "รายการซักอบรีด",
         note: note || null,
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, name, price, category, note, inPackage, packageDeduction, active } = body;
+    const { id, name, nameEn, price, category, note, inPackage, packageDeduction, active } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -66,6 +67,7 @@ export async function PUT(request: NextRequest) {
       where: { id },
       data: {
         name: name?.trim(),
+        nameEn: nameEn !== undefined ? (nameEn?.trim() || null) : undefined,
         price,
         category,
         note: note !== undefined ? (note || null) : undefined,

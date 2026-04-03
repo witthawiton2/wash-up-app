@@ -43,6 +43,7 @@ interface CustomerOption {
 interface ServiceItemOption {
   id: number;
   name: string;
+  nameEn: string | null;
   price: number;
   category: string;
   inPackage: boolean;
@@ -687,60 +688,62 @@ ${o.discount > 0 ? `
                     </td>
                     <td className="text-slate-500">{o.date}</td>
                     <td className="text-right font-medium">
-                      {calcTotal(o.items).toLocaleString()} ฿
+                      {o.totalAmount.toLocaleString()} ฿
                     </td>
                     <td className="text-center whitespace-nowrap">
-                      {o.status === "รอซักรีด" && (
-                        <>
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {o.status === "รอซักรีด" && (
+                          <>
+                            <button
+                              onClick={() => handleMarkReady(o)}
+                              className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md hover:bg-green-100"
+                            >
+                              พร้อมส่ง
+                            </button>
+                            <button
+                              onClick={() => openEdit(o)}
+                              className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md hover:bg-blue-100"
+                            >
+                              แก้ไข
+                            </button>
+                            <button
+                              onClick={() => setDeleteTarget(o)}
+                              className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-md hover:bg-red-100"
+                            >
+                              ลบ
+                            </button>
+                          </>
+                        )}
+                        {o.checkPhotos && (
                           <button
-                            onClick={() => handleMarkReady(o)}
-                            className="text-green-600 hover:text-green-800 text-sm mr-2 font-medium"
+                            onClick={() => {
+                              try { setViewCheckPhotos(JSON.parse(o.checkPhotos!)); } catch { /* */ }
+                            }}
+                            className="text-xs font-medium text-cyan-600 bg-cyan-50 border border-cyan-200 px-2.5 py-1 rounded-md hover:bg-cyan-100"
                           >
-                            พร้อมส่ง
+                            รูป
                           </button>
-                          <button
-                            onClick={() => openEdit(o)}
-                            className="text-blue-500 hover:text-blue-700 text-sm mr-2"
-                          >
-                            แก้ไข
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(o)}
-                            className="text-red-500 hover:text-red-700 text-sm mr-2"
-                          >
-                            ลบ
-                          </button>
-                        </>
-                      )}
-                      {o.checkPhotos && (
+                        )}
                         <button
-                          onClick={() => {
-                            try { setViewCheckPhotos(JSON.parse(o.checkPhotos!)); } catch { /* */ }
-                          }}
-                          className="text-cyan-500 hover:text-cyan-700 text-sm mr-2"
+                          onClick={() => viewReceipt(o)}
+                          className="text-xs font-medium text-purple-600 bg-purple-50 border border-purple-200 px-2.5 py-1 rounded-md hover:bg-purple-100"
                         >
-                          รูป
+                          บิล
                         </button>
-                      )}
-                      <button
-                        onClick={() => viewReceipt(o)}
-                        className="text-purple-500 hover:text-purple-700 text-sm mr-2"
-                      >
-                        บิล
-                      </button>
-                      <button
-                        onClick={() => printReceipt(o)}
-                        className="text-orange-500 hover:text-orange-700 text-sm mr-2"
-                      >
-                        ปริ้นบิล
-                      </button>
-                      <button
-                        onClick={() => sendToLine(o)}
-                        disabled={sending === o.orderId}
-                        className="text-green-600 hover:text-green-800 text-sm disabled:opacity-50"
-                      >
-                        {sending === o.orderId ? "กำลังส่ง..." : "ส่ง LINE"}
-                      </button>
+                        <button
+                          onClick={() => printReceipt(o)}
+                          className="text-xs font-medium text-orange-600 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-md hover:bg-orange-100"
+                        >
+                          ปริ้นบิล
+                        </button>
+                        <button
+                          onClick={() => sendToLine(o)}
+                          disabled={sending === o.orderId}
+                          className="text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-md hover:bg-emerald-100 disabled:opacity-50"
+                        >
+                          {sending === o.orderId ? "กำลังส่ง..." : "ส่ง LINE"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -917,7 +920,7 @@ ${o.discount > 0 ? `
                           .filter((s) => s.category === selectedCategory[index])
                           .map((s) => (
                             <option key={s.id} value={`${s.id}`}>
-                              {s.name} ({s.price}฿)
+                              {s.name}{s.nameEn ? ` (${s.nameEn})` : ""} ({s.price}฿)
                             </option>
                           ))}
                     </select>
@@ -1207,7 +1210,7 @@ ${o.discount > 0 ? `
       <Modal
         isOpen={!!receiptUrl}
         onClose={() => setReceiptUrl(null)}
-        title="ใบแจ้งหนี้"
+        title="Invoice"
       >
         {receiptUrl && (
           // eslint-disable-next-line @next/next/no-img-element

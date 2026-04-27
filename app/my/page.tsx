@@ -328,9 +328,12 @@ export default function MyPage() {
         {/* Tab: Orders */}
         {activeTab === "orders" && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between mt-1 mb-1">
-              <h3 className="text-sm font-bold text-slate-700">รายการของฉัน</h3>
-              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{orders.length} รายการ</span>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-5 rounded-full bg-blue-500" />
+                <h3 className="text-base font-bold text-slate-800">รายการของฉัน</h3>
+              </div>
+              <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">{orders.length} รายการ</span>
             </div>
             {orders.length === 0 ? (
               <div className="bg-white rounded-2xl p-10 text-center shadow-sm border border-slate-100">
@@ -384,7 +387,10 @@ export default function MyPage() {
         {/* Tab: Package */}
         {activeTab === "package" && (
           <div className="space-y-4 mt-2">
-            <h3 className="text-sm font-semibold text-slate-500">เติมแพ็คเกจ</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-1 h-5 rounded-full bg-purple-500" />
+              <h3 className="text-base font-bold text-slate-800">เติมแพ็คเกจ</h3>
+            </div>
 
             {renewSuccess && (
               <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-center text-sm">
@@ -457,7 +463,10 @@ export default function MyPage() {
         {/* Tab: Booking */}
         {activeTab === "booking" && (
           <div className="space-y-4 mt-2">
-            <h3 className="text-sm font-semibold text-slate-500">จองคิว</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-1 h-5 rounded-full bg-emerald-500" />
+              <h3 className="text-base font-bold text-slate-800">จองคิว</h3>
+            </div>
 
             {bookingSuccess && (
               <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-center text-sm">

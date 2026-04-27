@@ -324,7 +324,7 @@ export default function MyPage() {
       </div>
 
       {/* Content */}
-      <div className="px-4 -mt-6 relative z-10">
+      <div className="px-4 pt-4 relative z-10">
         {/* Tab: Orders */}
         {activeTab === "orders" && (
           <div className="space-y-3">

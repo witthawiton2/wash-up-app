@@ -180,10 +180,12 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(135deg, #7c3aed, #2563eb)" }}>
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(160deg, #0c1222, #1a2744, #2563eb)" }}>
         <div className="w-full max-w-md text-center">
-          <div className="bg-white rounded-2xl shadow-2xl p-8">
-            <div className="text-5xl mb-4">✅</div>
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
+            <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+              <span className="text-4xl">✅</span>
+            </div>
             <h2 className="text-xl font-bold text-slate-800 mb-2">{successMessage}</h2>
             <p className="text-slate-500 text-sm">
               {mode === "renew" ? "รอแอดมินยืนยัน จะได้รับแจ้งเตือนทาง LINE" : "ขอบคุณที่สมัครสมาชิก Wash Up"}
@@ -196,21 +198,27 @@ export default function RegisterPage() {
 
   if (mode === "loading") {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7c3aed, #2563eb)" }}>
-        <p className="text-white text-sm">กำลังโหลด...</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(160deg, #0c1222, #1a2744, #2563eb)" }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-300/30 border-t-white rounded-full animate-spin" />
+          <p className="text-white/80 text-sm">กำลังโหลด...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: "linear-gradient(135deg, #7c3aed, #2563eb)" }}>
+    <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: "linear-gradient(160deg, #0c1222 0%, #1a2744 40%, #2563eb 100%)" }}>
       <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-white mb-1">Wash Up</h1>
-          <p className="text-blue-100 text-sm">{mode === "renew" ? "เติมแพ็คเกจ" : "ลงทะเบียนสมาชิก"}</p>
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-3" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)", boxShadow: "0 8px 32px rgba(59,130,246,0.3)" }}>
+            <span className="text-2xl">🧺</span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-[0.15em] mb-1" style={{ background: "linear-gradient(135deg, #93c5fd, #c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>WASH UP</h1>
+          <p className="text-blue-300/60 text-xs tracking-widest uppercase">{mode === "renew" ? "Renew Package" : "Register"}</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-6">
+        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-white/20">
           {/* RENEW MODE */}
           {mode === "renew" && existingCustomer && (
             <form onSubmit={handleRenew} className="space-y-4">

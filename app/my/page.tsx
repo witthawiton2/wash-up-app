@@ -253,18 +253,24 @@ export default function MyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #1e3a5f, #2563eb)" }}>
-        <p className="text-white">กำลังโหลด...</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(160deg, #0c1222, #1a2744, #2563eb)" }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-blue-300/30 border-t-white rounded-full animate-spin" />
+          <p className="text-white/80 text-sm">กำลังโหลด...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !customer) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(135deg, #1e3a5f, #2563eb)" }}>
-        <div className="bg-white rounded-2xl p-8 text-center max-w-sm w-full">
-          <p className="text-slate-600">{error || "ไม่พบข้อมูลลูกค้า"}</p>
-          <a href="/register" className="text-blue-600 text-sm mt-4 inline-block underline">ลงทะเบียนใหม่</a>
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(160deg, #0c1222, #1a2744, #2563eb)" }}>
+        <div className="bg-white/95 backdrop-blur-xl rounded-2xl p-8 text-center max-w-sm w-full shadow-2xl border border-white/20">
+          <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">😕</span>
+          </div>
+          <p className="text-slate-600 font-medium">{error || "ไม่พบข้อมูลลูกค้า"}</p>
+          <a href="/register" className="inline-block mt-4 px-6 py-2.5 rounded-xl text-white text-sm font-medium" style={{ background: "linear-gradient(135deg, #2563eb, #6366f1)" }}>ลงทะเบียนใหม่</a>
         </div>
       </div>
     );
@@ -274,67 +280,99 @@ export default function MyPage() {
   const pendingOrders = orders.filter((o) => o.status !== "ส่งแล้ว");
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20">
+    <div className="min-h-screen pb-20" style={{ background: "linear-gradient(180deg, #f0f4ff 0%, #f8fafc 100%)" }}>
       {/* Header */}
-      <div className="text-white px-4 pt-6 pb-8" style={{ background: "linear-gradient(135deg, #1e3a5f, #2563eb)" }}>
-        <h1 className="text-2xl font-bold tracking-wider text-center mb-1">WASH UP</h1>
-        <p className="text-blue-200 text-xs text-center mb-4">Laundry & Dry cleaning</p>
-        <div className="bg-white/10 rounded-xl p-4">
-          <p className="text-lg font-semibold">{customer.customerCode ? `[${customer.customerCode}] ` : ""}{customer.name}</p>
-          <p className="text-blue-200 text-sm">โทร: {customer.phone || "-"}</p>
-          <div className="flex items-center justify-between mt-3">
-            <div>
-              <p className="text-xs text-blue-200">แพ็คเกจ</p>
-              <p className="font-bold text-lg">{customer.package || "-"}</p>
+      <div className="text-white px-4 pt-8 pb-10 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #0c1222 0%, #1a2744 40%, #2563eb 100%)" }}>
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full" style={{ background: "radial-gradient(circle, rgba(99,102,241,0.3), transparent)" }} />
+        <div className="absolute -bottom-20 -left-10 w-60 h-60 rounded-full" style={{ background: "radial-gradient(circle, rgba(59,130,246,0.2), transparent)" }} />
+
+        <div className="relative z-10">
+          <h1 className="text-xl font-bold tracking-[0.15em] text-center mb-0.5" style={{ background: "linear-gradient(135deg, #93c5fd, #c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>WASH UP</h1>
+          <p className="text-blue-300/50 text-[10px] text-center tracking-widest uppercase mb-5">Laundry & Dry cleaning</p>
+
+          {/* Customer Card */}
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/10">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg" style={{ background: "linear-gradient(135deg, #6366f1, #3b82f6)" }}>
+                {customer.name.charAt(0)}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-base font-semibold truncate">{customer.customerCode ? `${customer.customerCode} ` : ""}{customer.name}</p>
+                <p className="text-blue-300/70 text-xs">{customer.phone || "-"}</p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-xs text-blue-200">คงเหลือ</p>
-              <p className={`font-bold text-lg ${customer.remaining <= 0 ? "text-red-300" : ""}`}>
-                {customer.remaining} ชิ้น
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-blue-200">หมดอายุ</p>
-              <p className="font-bold text-sm">{customer.endDate || "-"}</p>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-white/10 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-blue-300/60 uppercase tracking-wider">แพ็คเกจ</p>
+                <p className="font-bold text-lg mt-0.5">{customer.package || "-"}</p>
+              </div>
+              <div className="bg-white/10 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-blue-300/60 uppercase tracking-wider">คงเหลือ</p>
+                <p className={`font-bold text-lg mt-0.5 ${customer.remaining <= 0 ? "text-red-400" : "text-emerald-400"}`}>
+                  {customer.remaining}
+                </p>
+              </div>
+              <div className="bg-white/10 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-blue-300/60 uppercase tracking-wider">หมดอายุ</p>
+                <p className="font-bold text-xs mt-1.5">{customer.endDate || "-"}</p>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="px-4 -mt-4">
+      <div className="px-4 -mt-6 relative z-10">
         {/* Tab: Orders */}
         {activeTab === "orders" && (
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-slate-500 mt-2">รายการของฉัน ({orders.length})</h3>
+            <div className="flex items-center justify-between mt-1 mb-1">
+              <h3 className="text-sm font-bold text-slate-700">รายการของฉัน</h3>
+              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">{orders.length} รายการ</span>
+            </div>
             {orders.length === 0 ? (
-              <div className="bg-white rounded-xl p-8 text-center text-slate-400">ยังไม่มีรายการ</div>
+              <div className="bg-white rounded-2xl p-10 text-center shadow-sm border border-slate-100">
+                <div className="text-4xl mb-3">📭</div>
+                <p className="text-slate-400 text-sm">ยังไม่มีรายการ</p>
+              </div>
             ) : (
               orders.map((o) => {
                 const st = statusLabel[o.status] || { text: o.status, color: "#94a3b8" };
                 return (
-                  <div key={o.orderId} className="bg-white rounded-xl p-4 shadow-sm">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-bold text-blue-600">{o.orderId}</span>
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: st.color }}>
+                  <div key={o.orderId} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${st.color}, ${st.color}cc)` }}>
+                          {o.orderId.slice(-2)}
+                        </div>
+                        <div>
+                          <span className="font-bold text-slate-800 text-sm">{o.orderId}</span>
+                          <p className="text-[10px] text-slate-400">{o.date}</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full text-white uppercase tracking-wider" style={{ backgroundColor: st.color }}>
                         {st.text}
                       </span>
                     </div>
-                    <div className="text-xs text-slate-400 mb-2">วันที่: {o.date}</div>
-                    <div className="space-y-1">
+                    <div className="space-y-1.5 mb-3">
                       {o.items.map((item, idx) => (
                         <div key={idx} className="flex justify-between text-sm">
-                          <span className="text-slate-600">{item.name} x{item.qty}</span>
-                          <span className="text-slate-500">{(item.qty * item.price).toLocaleString()}฿</span>
+                          <span className="text-slate-600">{item.name} <span className="text-slate-400">x{item.qty}</span></span>
+                          <span className="text-slate-500 font-medium">{(item.qty * item.price).toLocaleString()}฿</span>
                         </div>
                       ))}
                     </div>
-                    <div className="flex justify-between mt-2 pt-2 border-t border-slate-100">
-                      <span className="text-sm font-medium text-slate-600">รวม</span>
-                      <span className="text-sm font-bold text-blue-600">{o.totalAmount.toLocaleString()}฿</span>
+                    <div className="flex justify-between items-center pt-3 border-t border-slate-100">
+                      <span className="text-xs text-slate-400">ยอดรวม</span>
+                      <span className="text-base font-bold" style={{ color: "#2563eb" }}>{o.totalAmount.toLocaleString()} ฿</span>
                     </div>
                     {o.requestedDeliveryDate && (
-                      <div className="text-xs text-green-600 mt-1">จองส่งวันที่: {o.requestedDeliveryDate}</div>
+                      <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-600 bg-emerald-50 rounded-lg px-3 py-1.5">
+                        <span>📅</span>
+                        <span>จองส่งวันที่: {o.requestedDeliveryDate}</span>
+                      </div>
                     )}
                   </div>
                 );
@@ -592,7 +630,7 @@ export default function MyPage() {
       </div>
 
       {/* Bottom Tab Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200/50 flex safe-area-bottom" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {([
           { key: "orders" as Tab, label: "รายการ", icon: "📋" },
           { key: "package" as Tab, label: "แพ็คเกจ", icon: "📦" },
@@ -601,12 +639,15 @@ export default function MyPage() {
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-xs transition-colors ${
-              activeTab === tab.key ? "text-blue-600 font-semibold" : "text-slate-400"
+            className={`flex-1 py-3 flex flex-col items-center gap-0.5 transition-all duration-200 ${
+              activeTab === tab.key ? "text-blue-600" : "text-slate-400"
             }`}
           >
-            <span className="text-lg">{tab.icon}</span>
-            <span>{tab.label}</span>
+            <div className={`text-lg transition-transform duration-200 ${activeTab === tab.key ? "scale-110" : ""}`}>{tab.icon}</div>
+            <span className={`text-[10px] ${activeTab === tab.key ? "font-bold" : "font-medium"}`}>{tab.label}</span>
+            {activeTab === tab.key && (
+              <div className="w-5 h-0.5 rounded-full bg-blue-600 mt-0.5" />
+            )}
           </button>
         ))}
       </div>

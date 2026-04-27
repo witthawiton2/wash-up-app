@@ -32,8 +32,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="th">
+    <html lang="th" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem("washup_dark")==="1")document.documentElement.classList.add("dark")}catch(e){}` }} />
         <meta name="application-name" content="Wash Up" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="Wash Up" />

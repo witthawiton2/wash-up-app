@@ -46,19 +46,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(135deg, #1e3a5f, #2563eb, #1e40af)" }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(160deg, #0c1222 0%, #1a2744 40%, #1e3a5f 70%, #2563eb 100%)" }}>
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-white tracking-wider mb-2">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)", boxShadow: "0 8px 32px rgba(59,130,246,0.3)" }}>
+            <span className="text-3xl">🧺</span>
+          </div>
+          <h1 className="text-4xl font-bold tracking-[0.2em] mb-1" style={{ background: "linear-gradient(135deg, #60a5fa, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             WASH UP
           </h1>
-          <p className="text-blue-200 text-sm">Laundry Management System</p>
+          <p className="text-blue-300/60 text-xs tracking-widest uppercase">Laundry Management System</p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h2 className="text-xl font-bold text-slate-800 text-center mb-6">
+        <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-white/20">
+          <h2 className="text-lg font-bold text-slate-800 text-center mb-6">
             เข้าสู่ระบบ
           </h2>
 

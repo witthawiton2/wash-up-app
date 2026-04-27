@@ -1,81 +1,107 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f8fafc;
   --foreground: #0f172a;
-  --primary-blue: #1e40af;
-  --secondary-blue: #3b82f6;
-  --accent-blue: #2563eb;
-  --light-blue: #dbeafe;
-  --bg-gradient-start: #eff6ff;
-  --bg-gradient-end: #ffffff;
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light: #3b82f6;
+  --primary-bg: #eff6ff;
+  --accent: #6366f1;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --bg-gradient-start: #f0f4ff;
+  --bg-gradient-end: #f8fafc;
   --card-bg: #ffffff;
   --card-border: #e2e8f0;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  --card-shadow-hover: 0 10px 25px rgba(0,0,0,0.08), 0 4px 10px rgba(0,0,0,0.04);
   --table-header-bg: #f8fafc;
   --table-hover: #f1f5f9;
-  --sidebar-bg: #1e293b;
-  --sidebar-text: #cbd5e1;
+  --sidebar-bg: #0f172a;
+  --sidebar-text: #94a3b8;
   --sidebar-active: #3b82f6;
-  --sidebar-hover: #334155;
+  --sidebar-hover: #1e293b;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-focus: #2563eb;
+  --muted: #64748b;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
 }
 
 html.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --bg-gradient-start: #0f172a;
-  --bg-gradient-end: #0a0a0a;
-  --card-bg: #1e293b;
-  --card-border: #334155;
-  --table-header-bg: #1e293b;
-  --table-hover: #334155;
-  --sidebar-bg: #0f172a;
-  --sidebar-text: #94a3b8;
-  --sidebar-active: #2563eb;
-  --sidebar-hover: #1e293b;
+  --background: #0c0e14;
+  --foreground: #e2e8f0;
+  --primary-bg: #1e293b;
+  --bg-gradient-start: #0c0e14;
+  --bg-gradient-end: #111827;
+  --card-bg: #1a1f2e;
+  --card-border: #2d3548;
+  --card-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  --card-shadow-hover: 0 10px 25px rgba(0,0,0,0.3);
+  --table-header-bg: #1e2536;
+  --table-hover: #232b3e;
+  --sidebar-bg: #0a0d14;
+  --sidebar-text: #64748b;
+  --sidebar-active: #3b82f6;
+  --sidebar-hover: #151a27;
+  --input-bg: #1e2536;
+  --input-border: #334155;
+  --muted: #94a3b8;
 }
 
 body {
   color: var(--foreground);
-  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+  background: linear-gradient(160deg, var(--bg-gradient-start), var(--bg-gradient-end));
   min-height: 100vh;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Button styles */
+/* ─── Buttons ─── */
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-blue), var(--accent-blue));
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
   color: white;
-  padding: 0.625rem 1.25rem;
-  border-radius: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   font-size: 0.875rem;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   border: none;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(30, 64, 175, 0.3);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
   min-height: 44px;
+  letter-spacing: 0.01em;
 }
 
 .btn-primary:hover {
-  box-shadow: 0 4px 12px rgba(30, 64, 175, 0.4);
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
   transform: translateY(-1px);
 }
 
-/* Card styles */
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+/* ─── Cards ─── */
 .card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
-  border-radius: 0.75rem;
+  border-radius: var(--radius);
   padding: 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  transition: box-shadow 0.2s;
+  box-shadow: var(--card-shadow);
+  transition: all 0.25s ease;
 }
 
 .card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--card-shadow-hover);
 }
 
-/* Table styles */
+/* ─── Tables ─── */
 .data-table {
   width: 100%;
   border-collapse: separate;
@@ -84,35 +110,43 @@ body {
 
 .data-table th {
   background: var(--table-header-bg);
-  padding: 0.625rem 0.75rem;
+  padding: 0.75rem;
   text-align: left;
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.6875rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #64748b;
-  border-bottom: 1px solid var(--card-border);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 2px solid var(--card-border);
 }
 
 .data-table td {
-  padding: 0.625rem 0.75rem;
+  padding: 0.75rem;
   font-size: 0.875rem;
   border-bottom: 1px solid var(--card-border);
+  color: var(--foreground);
+}
+
+.data-table tbody tr {
+  transition: background 0.15s ease;
 }
 
 .data-table tbody tr:hover {
   background: var(--table-hover);
 }
 
-/* Status badge */
+/* ─── Status Badges ─── */
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.625rem;
+  gap: 4px;
+  padding: 0.25rem 0.75rem;
   border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 600;
   white-space: nowrap;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .badge-blue {
@@ -121,13 +155,13 @@ body {
 }
 
 .badge-green {
-  background: #dcfce7;
-  color: #166534;
+  background: #d1fae5;
+  color: #065f46;
 }
 
 .badge-yellow {
-  background: #fef9c3;
-  color: #854d0e;
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .badge-red {
@@ -140,37 +174,56 @@ body {
   color: #475569;
 }
 
-/* Filter tabs */
+html.dark .badge-blue { background: #1e3a5f; color: #93c5fd; }
+html.dark .badge-green { background: #064e3b; color: #6ee7b7; }
+html.dark .badge-yellow { background: #78350f; color: #fcd34d; }
+html.dark .badge-red { background: #7f1d1d; color: #fca5a5; }
+html.dark .badge-gray { background: #334155; color: #94a3b8; }
+
+/* ─── Filter Tabs ─── */
 .filter-tab {
-  padding: 0.5rem 0.875rem;
-  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   border: 1px solid var(--card-border);
   background: var(--card-bg);
-  color: #64748b;
+  color: var(--muted);
   min-height: 40px;
 }
 
 .filter-tab:hover {
-  border-color: var(--secondary-blue);
-  color: var(--secondary-blue);
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-bg);
 }
 
 .filter-tab.active {
-  background: var(--secondary-blue);
+  background: var(--primary);
   color: white;
-  border-color: var(--secondary-blue);
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
-/* Mobile responsive: hide columns */
+/* ─── Inputs ─── */
+input, select, textarea {
+  color: var(--foreground);
+  background: var(--input-bg);
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--input-focus) !important;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ─── Mobile responsive ─── */
 .hide-mobile {
   display: table-cell;
 }
 
-/* Action buttons touch-friendly */
 .action-btn {
   display: inline-flex;
   align-items: center;
@@ -179,19 +232,50 @@ body {
   min-width: 36px;
   padding: 0.375rem 0.5rem;
   font-size: 0.8125rem;
-  border-radius: 0.375rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
 }
 
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+/* ─── Animations ─── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+  animation: fadeIn 0.3s ease;
+}
+
+/* ─── Mobile ─── */
 @media (max-width: 640px) {
   .card {
-    padding: 0.875rem;
+    padding: 1rem;
+    border-radius: var(--radius-sm);
   }
 
   .data-table th {
     padding: 0.5rem;
-    font-size: 0.6875rem;
+    font-size: 0.625rem;
   }
 
   .data-table td {
@@ -204,8 +288,9 @@ body {
   }
 
   .filter-tab {
-    padding: 0.375rem 0.625rem;
+    padding: 0.375rem 0.75rem;
     font-size: 0.75rem;
+    min-height: 36px;
   }
 
   .btn-primary {

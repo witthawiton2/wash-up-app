@@ -1,0 +1,615 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import liff from "@line/liff";
+
+interface CustomerInfo {
+  id: number;
+  name: string;
+  phone: string;
+  package: string;
+  remaining: number;
+  endDate: string | null;
+  customerCode: string;
+}
+
+interface OrderItem {
+  name: string;
+  qty: number;
+  price: number;
+}
+
+interface MyOrder {
+  orderId: string;
+  items: OrderItem[];
+  status: string;
+  totalAmount: number;
+  date: string;
+  requestedDeliveryDate: string | null;
+}
+
+interface PackageOption {
+  id: number;
+  name: string;
+  description: string;
+  totalItems: number;
+  validDays: number;
+  price: number;
+}
+
+const statusLabel: Record<string, { text: string; color: string }> = {
+  "รอซักรีด": { text: "กำลังซัก", color: "#3b82f6" },
+  "พร้อมส่ง": { text: "พร้อมส่ง", color: "#10b981" },
+  "ส่งแล้ว": { text: "ส่งแล้ว", color: "#94a3b8" },
+};
+
+type Tab = "orders" | "package" | "booking";
+
+export default function MyPage() {
+  const [lineUserId, setLineUserId] = useState("");
+  const [customer, setCustomer] = useState<CustomerInfo | null>(null);
+  const [orders, setOrders] = useState<MyOrder[]>([]);
+  const [packages, setPackages] = useState<PackageOption[]>([]);
+  const [activeTab, setActiveTab] = useState<Tab>("orders");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  // Package renewal
+  const [selectedPkg, setSelectedPkg] = useState("");
+  const [qrUrl, setQrUrl] = useState("");
+  const [slipFile, setSlipFile] = useState<File | null>(null);
+  const [slipPreview, setSlipPreview] = useState("");
+  const [renewLoading, setRenewLoading] = useState(false);
+  const [renewSuccess, setRenewSuccess] = useState(false);
+  const slipRef = useRef<HTMLInputElement>(null);
+
+  // Booking
+  const [bookingActivity, setBookingActivity] = useState("");
+  const [bookingOrderId, setBookingOrderId] = useState("");
+  const [bookingTimeSlot, setBookingTimeSlot] = useState("");
+  const [bookingDate, setBookingDate] = useState("");
+  const [bookingTime, setBookingTime] = useState("");
+  const [bookingPhone, setBookingPhone] = useState("");
+  const [bookingNote, setBookingNote] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    // Auto-select tab from query param ?tab=booking
+    const tabParam = params.get("tab");
+    if (tabParam === "booking" || tabParam === "package" || tabParam === "orders") {
+      setActiveTab(tabParam as Tab);
+    }
+
+    // Dev mode: skip LIFF login with ?testUserId=xxx
+    const testUid = params.get("testUserId");
+    if (testUid) {
+      setLineUserId(testUid);
+      loadData(testUid);
+      return;
+    }
+
+    const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
+    if (!liffId) {
+      setError("LIFF ID not configured");
+      setLoading(false);
+      return;
+    }
+
+    liff
+      .init({ liffId })
+      .then(() => {
+        if (liff.isLoggedIn()) {
+          liff.getProfile().then((profile) => {
+            setLineUserId(profile.userId);
+            loadData(profile.userId);
+          });
+        } else {
+          liff.login();
+        }
+      })
+      .catch(() => {
+        setError("ไม่สามารถเชื่อมต่อ LINE ได้");
+        setLoading(false);
+      });
+  }, []);
+
+  const loadData = async (uid: string) => {
+    try {
+      const [custRes, ordersRes, pkgRes] = await Promise.all([
+        fetch(`/api/renew?lineUserId=${uid}`),
+        fetch(`/api/my/orders?lineUserId=${uid}`),
+        fetch("/api/packages"),
+      ]);
+
+      if (custRes.ok) {
+        const custData = await custRes.json();
+        setCustomer(custData);
+      }
+      if (ordersRes.ok) {
+        const ordersData = await ordersRes.json();
+        setOrders(ordersData);
+      }
+      if (pkgRes.ok) {
+        const pkgData = await pkgRes.json();
+        setPackages(pkgData);
+      }
+    } catch {
+      setError("ไม่สามารถโหลดข้อมูลได้");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectPkg = async (pkgName: string) => {
+    setSelectedPkg(pkgName);
+    setRenewSuccess(false);
+    const pkg = packages.find((p) => p.name === pkgName);
+    if (pkg && pkg.price > 0) {
+      try {
+        const res = await fetch("/api/promptpay-qr", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount: pkg.price }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setQrUrl(data.qrDataUri);
+        }
+      } catch { /* ignore */ }
+    }
+  };
+
+  const handleSlipChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSlipFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setSlipPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleRenew = async () => {
+    if (!selectedPkg || !slipFile || !lineUserId) return;
+    setRenewLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", slipFile);
+      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+      const uploadData = await uploadRes.json();
+      if (!uploadData.success) {
+        alert("อัพโหลดสลิปไม่สำเร็จ");
+        return;
+      }
+
+      const res = await fetch("/api/renew", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId,
+          package: selectedPkg,
+          slipUrl: uploadData.url,
+        }),
+      });
+      if (res.ok) {
+        setRenewSuccess(true);
+        setSlipFile(null);
+        setSlipPreview("");
+        setQrUrl("");
+        loadData(lineUserId);
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setRenewLoading(false);
+    }
+  };
+
+  const timeSlots: Record<string, string[]> = {
+    "ช่วงเช้า (9:00-12:00)": ["9:00", "9:30", "10:00", "10:30", "11:00", "11:30"],
+    "ช่วงบ่าย (12:00-18:00)": ["12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"],
+    "ช่วงเย็น (18:00-20:30)": ["18:00", "18:30", "19:00", "19:30", "20:00"],
+  };
+
+  const activities = [
+    { id: "send", label: "ส่งเสื้อผ้าซัก" },
+    { id: "receive", label: "รับเสื้อผ้าที่เสร็จคืน (+ส่งเสื้อผ้าใหม่)" },
+  ];
+
+  const handleBooking = async () => {
+    if (!bookingActivity || !bookingDate || !bookingTime || !lineUserId) return;
+    setBookingLoading(true);
+    try {
+      const res = await fetch("/api/my/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId,
+          activity: bookingActivity,
+          orderId: bookingOrderId || undefined,
+          date: bookingDate,
+          time: bookingTime,
+          phone: bookingPhone || customer?.phone,
+          note: bookingNote,
+        }),
+      });
+      if (res.ok) {
+        setBookingSuccess(true);
+        setBookingActivity("");
+        setBookingOrderId("");
+        setBookingTimeSlot("");
+        setBookingDate("");
+        setBookingTime("");
+        setBookingNote("");
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #1e3a5f, #2563eb)" }}>
+        <p className="text-white">กำลังโหลด...</p>
+      </div>
+    );
+  }
+
+  if (error || !customer) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(135deg, #1e3a5f, #2563eb)" }}>
+        <div className="bg-white rounded-2xl p-8 text-center max-w-sm w-full">
+          <p className="text-slate-600">{error || "ไม่พบข้อมูลลูกค้า"}</p>
+          <a href="/register" className="text-blue-600 text-sm mt-4 inline-block underline">ลงทะเบียนใหม่</a>
+        </div>
+      </div>
+    );
+  }
+
+  const pkg = packages.find((p) => p.name === selectedPkg);
+  const pendingOrders = orders.filter((o) => o.status !== "ส่งแล้ว");
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-20">
+      {/* Header */}
+      <div className="text-white px-4 pt-6 pb-8" style={{ background: "linear-gradient(135deg, #1e3a5f, #2563eb)" }}>
+        <h1 className="text-2xl font-bold tracking-wider text-center mb-1">WASH UP</h1>
+        <p className="text-blue-200 text-xs text-center mb-4">Laundry & Dry cleaning</p>
+        <div className="bg-white/10 rounded-xl p-4">
+          <p className="text-lg font-semibold">{customer.customerCode ? `[${customer.customerCode}] ` : ""}{customer.name}</p>
+          <p className="text-blue-200 text-sm">โทร: {customer.phone || "-"}</p>
+          <div className="flex items-center justify-between mt-3">
+            <div>
+              <p className="text-xs text-blue-200">แพ็คเกจ</p>
+              <p className="font-bold text-lg">{customer.package || "-"}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-blue-200">คงเหลือ</p>
+              <p className={`font-bold text-lg ${customer.remaining <= 0 ? "text-red-300" : ""}`}>
+                {customer.remaining} ชิ้น
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-blue-200">หมดอายุ</p>
+              <p className="font-bold text-sm">{customer.endDate || "-"}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="px-4 -mt-4">
+        {/* Tab: Orders */}
+        {activeTab === "orders" && (
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-slate-500 mt-2">รายการของฉัน ({orders.length})</h3>
+            {orders.length === 0 ? (
+              <div className="bg-white rounded-xl p-8 text-center text-slate-400">ยังไม่มีรายการ</div>
+            ) : (
+              orders.map((o) => {
+                const st = statusLabel[o.status] || { text: o.status, color: "#94a3b8" };
+                return (
+                  <div key={o.orderId} className="bg-white rounded-xl p-4 shadow-sm">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-bold text-blue-600">{o.orderId}</span>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: st.color }}>
+                        {st.text}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-400 mb-2">วันที่: {o.date}</div>
+                    <div className="space-y-1">
+                      {o.items.map((item, idx) => (
+                        <div key={idx} className="flex justify-between text-sm">
+                          <span className="text-slate-600">{item.name} x{item.qty}</span>
+                          <span className="text-slate-500">{(item.qty * item.price).toLocaleString()}฿</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between mt-2 pt-2 border-t border-slate-100">
+                      <span className="text-sm font-medium text-slate-600">รวม</span>
+                      <span className="text-sm font-bold text-blue-600">{o.totalAmount.toLocaleString()}฿</span>
+                    </div>
+                    {o.requestedDeliveryDate && (
+                      <div className="text-xs text-green-600 mt-1">จองส่งวันที่: {o.requestedDeliveryDate}</div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* Tab: Package */}
+        {activeTab === "package" && (
+          <div className="space-y-4 mt-2">
+            <h3 className="text-sm font-semibold text-slate-500">เติมแพ็คเกจ</h3>
+
+            {renewSuccess && (
+              <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-center text-sm">
+                ส่งคำขอเติมแพ็คเกจสำเร็จ รอแอดมินยืนยัน
+              </div>
+            )}
+
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <label className="block text-sm font-medium text-slate-600 mb-2">เลือกแพ็คเกจ</label>
+              <select
+                value={selectedPkg}
+                onChange={(e) => handleSelectPkg(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- เลือกแพ็คเกจ --</option>
+                {packages.map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {p.name} — {p.totalItems} ชิ้น / {p.validDays} วัน ({p.price.toLocaleString()}฿)
+                  </option>
+                ))}
+              </select>
+
+              {pkg && (
+                <div className="mt-3 bg-blue-50 rounded-lg p-3 text-xs space-y-1">
+                  {pkg.description && <p className="text-slate-500">{pkg.description}</p>}
+                  <p className="text-blue-700 font-medium">จำนวน: {pkg.totalItems} ชิ้น</p>
+                  <p className="text-blue-700 font-medium">อายุ: {pkg.validDays} วัน</p>
+                  <p className="text-blue-700 font-bold text-base">ราคา: {pkg.price.toLocaleString()}฿</p>
+                </div>
+              )}
+            </div>
+
+            {qrUrl && (
+              <div className="bg-white rounded-xl p-4 shadow-sm text-center">
+                <p className="text-sm font-medium text-slate-600 mb-3">สแกน QR ชำระเงิน</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={qrUrl} alt="PromptPay QR" className="mx-auto w-48 h-48 rounded-lg" />
+                <p className="text-xs text-slate-400 mt-2">PromptPay</p>
+              </div>
+            )}
+
+            {selectedPkg && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <p className="text-sm font-medium text-slate-600 mb-2">แนบสลิปการโอนเงิน</p>
+                {slipPreview && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={slipPreview} alt="slip" className="w-full max-h-60 object-contain rounded-lg mb-3" />
+                )}
+                <input ref={slipRef} type="file" accept="image/*" capture="environment" onChange={handleSlipChange} className="hidden" />
+                <button
+                  onClick={() => slipRef.current?.click()}
+                  className="w-full py-2.5 rounded-lg border-2 border-dashed border-slate-300 text-sm text-slate-500 hover:border-blue-400"
+                >
+                  {slipPreview ? "เปลี่ยนรูปสลิป" : "ถ่ายรูป / เลือกรูปสลิป"}
+                </button>
+
+                <button
+                  onClick={handleRenew}
+                  disabled={!slipFile || renewLoading}
+                  className="w-full mt-3 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #1e40af, #2563eb)" }}
+                >
+                  {renewLoading ? "กำลังส่ง..." : "ส่งคำขอเติมแพ็คเกจ"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab: Booking */}
+        {activeTab === "booking" && (
+          <div className="space-y-4 mt-2">
+            <h3 className="text-sm font-semibold text-slate-500">จองคิว</h3>
+
+            {bookingSuccess && (
+              <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-center text-sm">
+                จองคิวสำเร็จ รอการยืนยันจากร้าน
+              </div>
+            )}
+
+            {/* เลือกกิจกรรม */}
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <h4 className="text-sm font-bold text-slate-700 mb-3">เลือกกิจกรรม</h4>
+              <div className="space-y-2">
+                {activities.map((a) => (
+                  <label
+                    key={a.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      bookingActivity === a.id
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-slate-200 hover:border-blue-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="activity"
+                      value={a.id}
+                      checked={bookingActivity === a.id}
+                      onChange={() => { setBookingActivity(a.id); setBookingSuccess(false); }}
+                      className="w-5 h-5 text-blue-500"
+                    />
+                    <span className="text-sm text-slate-700">{a.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* เลือกออเดอร์ (เฉพาะรับผ้าคืน) */}
+            {bookingActivity === "receive" && pendingOrders.length > 0 && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">เลือกออเดอร์ที่ต้องการรับคืน</h4>
+                <div className="space-y-2">
+                  {pendingOrders.map((o) => (
+                    <label
+                      key={o.orderId}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        bookingOrderId === o.orderId
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-slate-200 hover:border-blue-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="bookingOrder"
+                        value={o.orderId}
+                        checked={bookingOrderId === o.orderId}
+                        onChange={() => setBookingOrderId(o.orderId)}
+                        className="w-5 h-5 text-blue-500"
+                      />
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-blue-600">{o.orderId}</span>
+                        <span className="text-xs text-slate-400 ml-2">{o.date}</span>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {o.items.map((i) => `${i.name} x${i.qty}`).join(", ")}
+                        </div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* เลือกช่วงเวลา */}
+            {bookingActivity && (bookingActivity === "send" || bookingOrderId || pendingOrders.length === 0) && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">เลือกช่วงเวลา</h4>
+                <div className="space-y-2">
+                  {Object.keys(timeSlots).map((slot) => (
+                    <label
+                      key={slot}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        bookingTimeSlot === slot
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-slate-200 hover:border-blue-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="timeSlot"
+                        value={slot}
+                        checked={bookingTimeSlot === slot}
+                        onChange={() => { setBookingTimeSlot(slot); setBookingTime(""); }}
+                        className="w-5 h-5 text-blue-500"
+                      />
+                      <span className="text-sm text-slate-700">{slot}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* เลือกวันที่ */}
+            {bookingTimeSlot && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">เลือกวันที่</h4>
+                <input
+                  type="date"
+                  value={bookingDate}
+                  onChange={(e) => setBookingDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            )}
+
+            {/* เลือกเวลา */}
+            {bookingDate && bookingTimeSlot && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">เลือกเวลา</h4>
+                <div className="flex flex-wrap gap-2">
+                  {timeSlots[bookingTimeSlot]?.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setBookingTime(t)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                        bookingTime === t
+                          ? "bg-blue-500 text-white border-blue-500"
+                          : "bg-white text-slate-600 border-slate-300 hover:border-blue-400"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* เบอร์โทร + หมายเหตุ */}
+            {bookingTime && (
+              <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-700 mb-2">เบอร์โทรติดต่อ</h4>
+                  <input
+                    type="tel"
+                    value={bookingPhone || customer?.phone || ""}
+                    onChange={(e) => setBookingPhone(e.target.value)}
+                    placeholder="0812345678"
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-700 mb-2">หมายเหตุ <span className="font-normal text-slate-400">(เว้นว่างได้)</span></h4>
+                  <textarea
+                    value={bookingNote}
+                    onChange={(e) => setBookingNote(e.target.value)}
+                    rows={2}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+
+                <button
+                  onClick={handleBooking}
+                  disabled={bookingLoading}
+                  className="w-full py-3 rounded-lg text-white text-sm font-semibold disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #1e40af, #2563eb)" }}
+                >
+                  {bookingLoading ? "กำลังจอง..." : "จอง"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Tab Bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex">
+        {([
+          { key: "orders" as Tab, label: "รายการ", icon: "📋" },
+          { key: "package" as Tab, label: "แพ็คเกจ", icon: "📦" },
+          { key: "booking" as Tab, label: "จองคิว", icon: "📅" },
+        ]).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 py-3 flex flex-col items-center gap-0.5 text-xs transition-colors ${
+              activeTab === tab.key ? "text-blue-600 font-semibold" : "text-slate-400"
+            }`}
+          >
+            <span className="text-lg">{tab.icon}</span>
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

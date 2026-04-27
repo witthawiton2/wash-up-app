@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { notifyAdminRenewRequest } from "@/lib/notify-admin";
 
 // GET: ดึงข้อมูลลูกค้าจาก lineUserId
 export async function GET(request: NextRequest) {
@@ -60,6 +61,10 @@ export async function POST(request: NextRequest) {
         renewSlipUrl: slipUrl || null,
       },
     });
+
+    // Notify admin
+    const pkg = await prisma.package.findFirst({ where: { name: packageName } });
+    notifyAdminRenewRequest(customer.name, packageName, pkg?.price || 0).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error) {

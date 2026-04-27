@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Modal, { ConfirmDelete } from "@/components/Modal";
+import Spinner from "@/components/Spinner";
+import Pagination, { usePagination } from "@/components/Pagination";
+import { usePolling } from "@/lib/use-polling";
 
 interface Customer {
   id: number;
@@ -40,6 +43,7 @@ export default function CustomerPage() {
   const [renewTarget, setRenewTarget] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState("ทั้งหมด");
   const [searchQuery, setSearchQuery] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -71,6 +75,8 @@ export default function CustomerPage() {
     fetchCustomers();
     fetchPackages();
   }, [fetchCustomers, fetchPackages]);
+
+  usePolling(fetchCustomers, 30000);
 
   const openAdd = () => {
     setEditing({ ...emptyCustomer });
@@ -134,6 +140,8 @@ export default function CustomerPage() {
   };
 
   const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const method = isEdit ? "PUT" : "POST";
       const res = await fetch("/api/customers", {
@@ -157,6 +165,8 @@ export default function CustomerPage() {
       }
     } catch (error) {
       console.error("Failed to save customer:", error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -198,8 +208,11 @@ export default function CustomerPage() {
     return list;
   })();
 
+  const { paged: pagedCustomers, currentPage, totalPages, totalItems, itemsPerPage, setCurrentPage } = usePagination(filteredCustomers, 20);
+
   return (
     <div>
+      {saving && <Spinner text="กำลังบันทึก..." />}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-slate-800">Customer</h2>
         <button className="btn-primary" onClick={openAdd}>+ เพิ่มลูกค้าใหม่</button>
@@ -250,7 +263,7 @@ export default function CustomerPage() {
                   <td colSpan={8} className="text-center py-8 text-slate-400">ยังไม่มีลูกค้า</td>
                 </tr>
               ) : (
-                filteredCustomers.map((c) => (
+                pagedCustomers.map((c) => (
                   <tr key={c.id}>
                     <td className="font-medium">
                       {c.name}
@@ -281,6 +294,7 @@ export default function CustomerPage() {
             </tbody>
           </table>
         </div>
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={totalItems} itemsPerPage={itemsPerPage} />
       </div>
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={isEdit ? "แก้ไขลูกค้า" : "เพิ่มลูกค้าใหม่"}>

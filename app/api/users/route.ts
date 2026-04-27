@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function GET() {
   try {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.create({
       data: {
         username: username.trim(),
-        password: password.trim(),
+        password: await bcrypt.hash(password.trim(), 10),
         name: name.trim(),
         role,
       },
@@ -70,7 +71,7 @@ export async function PUT(request: NextRequest) {
 
     const updateData: Record<string, unknown> = {};
     if (username) updateData.username = username.trim();
-    if (password) updateData.password = password.trim();
+    if (password) updateData.password = await bcrypt.hash(password.trim(), 10);
     if (name) updateData.name = name.trim();
     if (role) updateData.role = role;
     if (active !== undefined) updateData.active = active;

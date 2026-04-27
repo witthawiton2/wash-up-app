@@ -37,6 +37,7 @@ model Customer {
   createdAt    DateTime @default(now())
   updatedAt  DateTime @updatedAt
   orders     Order[]
+  payments   Payment[]
 }
 
 model Order {
@@ -51,8 +52,9 @@ model Order {
   hangersBought Int      @default(0)
   discount      Float    @default(0)
   checkPhotos   String?
-  note          String?
-  orderDate     DateTime @default(now())
+  note                  String?
+  requestedDeliveryDate DateTime?
+  orderDate             DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   items         OrderItem[]
@@ -116,4 +118,27 @@ model Promotion {
   status    String   @default("active")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  action    String   // create_order, edit_order, mark_ready, complete_delivery, approve_customer, renew_package
+  user      String?  // username ที่ทำ
+  target    String?  // orderId, customerId
+  detail    String?  // รายละเอียด
+  createdAt DateTime @default(now())
+}
+
+model Payment {
+  id          Int      @id @default(autoincrement())
+  customerId  Int?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  type        String   // "order" | "package_renew"
+  amount      Float
+  slipUrl     String?
+  status      String   @default("pending") // pending, confirmed, rejected
+  note        String?
+  orderId     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

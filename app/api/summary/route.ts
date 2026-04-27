@@ -138,12 +138,46 @@ export async function GET() {
 
     const customerCount = await prisma.customer.count();
 
+    // Today's bookings
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayBookings = await prisma.order.count({
+      where: {
+        requestedDeliveryDate: { gte: today, lt: tomorrow },
+      },
+    });
+
+    // Pending renewals
+    const pendingRenewals = await prisma.customer.count({
+      where: { renewPending: true },
+    });
+
+    // Monthly revenue (current month)
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const monthlyRevenue = orders
+      .filter((o) => o.orderDate >= monthStart)
+      .reduce((s, o) => s + o.totalAmount, 0);
+
+    // Top customers
+    const customerTotals = new Map<string, { name: string; orders: number; revenue: number }>();
+    for (const o of orders) {
+      const name = o.customer?.name || o.walkInName || "ลูกค้าทั่วไป";
+      const existing = customerTotals.get(name) || { name, orders: 0, revenue: 0 };
+      existing.orders += 1;
+      existing.revenue += o.totalAmount;
+      customerTotals.set(name, existing);
+    }
+    const topCustomers = Array.from(customerTotals.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
     return NextResponse.json({
       summary,
-      totals,
+      totals: { ...totals, todayBookings, pendingRenewals, monthlyRevenue },
       statusCounts,
       last7,
       topItems,
+      topCustomers,
       recentOrders,
       customerCount,
     });

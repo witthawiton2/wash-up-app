@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Wash Up Documentation</title>
+  <style>
+    /* Default styles provided by pandoc.
+    ** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+    */
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      white-space: pre-wrap;
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">Wash Up Documentation</h1>
+</header>
+<h1 id="wash-up---laundry-management-system">WASH UP - Laundry
+Management System</h1>
+<h2 id="คมอการใชงานและเอกสาร-technical">คู่มือการใช้งานและเอกสาร
+Technical</h2>
+<hr />
+<h1 id="สารบญ">สารบัญ</h1>
+<ol type="1">
+<li><a href="#1-ภาพรวมระบบ">ภาพรวมระบบ</a></li>
+<li><a href="#2-การติดตั้งและ-setup">การติดตั้งและ Setup</a></li>
+<li><a href="#3-คู่มือการใช้งาน--แอดมินผู้จัดการ">คู่มือการใช้งาน —
+แอดมิน/ผู้จัดการ</a></li>
+<li><a href="#4-คู่มือการใช้งาน--พนักงานทั่วไป">คู่มือการใช้งาน — พนักงานทั่วไป
+(Staff)</a></li>
+<li><a href="#5-คู่มือการใช้งาน--พนักงานรับส่ง">คู่มือการใช้งาน — พนักงานรับส่ง
+(Driver)</a></li>
+<li><a href="#6-คู่มือการใช้งาน--ลูกค้า">คู่มือการใช้งาน — ลูกค้า (Customer
+Portal)</a></li>
+<li><a href="#7-ขั้นตอนการทำงานหลัก">ขั้นตอนการทำงานหลัก (Workflow)</a></li>
+<li><a href="#8-technical-documentation">Technical
+Documentation</a></li>
+<li><a href="#9-database-schema">Database Schema</a></li>
+<li><a href="#10-api-reference">API Reference</a></li>
+<li><a href="#11-การ-deploy-และ-maintenance">การ Deploy และ
+Maintenance</a></li>
+</ol>
+<hr />
+<h1 id="ภาพรวมระบบ">1. ภาพรวมระบบ</h1>
+<h2 id="wash-up-คออะไร">1.1 Wash Up คืออะไร</h2>
+<p>ระบบจัดการร้านซักรีดผ้า Wash Up เป็น Web Application สำหรับ: -
+จัดการออเดอร์ซักรีด (สร้าง, แก้ไข, ติดตามสถานะ) - จัดการลูกค้าและแพ็คเกจสมาชิก -
+จัดการจัดส่ง (Delivery) - ปริ้นใบเสร็จ + ส่งใบเสร็จผ่าน LINE - ลูกค้าดูข้อมูลตัวเอง
+เติมแพ็คเกจ จองคิวผ่าน LINE</p>
+<h2 id="ผใชงาน-roles">1.2 ผู้ใช้งาน (Roles)</h2>
+<table>
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 24%" />
+<col style="width: 57%" />
+</colgroup>
+<thead>
+<tr>
+<th>Role</th>
+<th>สิทธิ์</th>
+<th>เมนูที่เข้าถึงได้</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Admin (ผู้จัดการ)</strong></td>
+<td>เข้าถึงทุกเมนู</td>
+<td>Dashboard, Customer, Delivery, Laundry, Ironing, Services, Packages,
+Bookings, Users, Summary</td>
+</tr>
+<tr>
+<td><strong>Staff (พนง.ทั่วไป)</strong></td>
+<td>จัดการออเดอร์ + ลูกค้า</td>
+<td>Customer, Laundry, Ironing, Services, Bookings</td>
+</tr>
+<tr>
+<td><strong>Driver (พนง.รับส่ง)</strong></td>
+<td>จัดส่งเท่านั้น</td>
+<td>Delivery</td>
+</tr>
+</tbody>
+</table>
+<h2 id="เทคโนโลยทใช">1.3 เทคโนโลยีที่ใช้</h2>
+<ul>
+<li><strong>Frontend:</strong> Next.js 16, React 19, Tailwind CSS</li>
+<li><strong>Backend:</strong> Next.js API Routes</li>
+<li><strong>Database:</strong> PostgreSQL (Supabase production / Local
+dev)</li>
+<li><strong>ORM:</strong> Prisma</li>
+<li><strong>LINE Integration:</strong> LINE LIFF + Messaging API</li>
+<li><strong>Hosting:</strong> Vercel</li>
+<li><strong>Icons:</strong> Lucide React</li>
+<li><strong>PWA:</strong> Manifest + Service Worker</li>
+</ul>
+<hr />
+<h1 id="การตดตงและ-setup">2. การติดตั้งและ Setup</h1>
+<h2 id="ตดตง-development">2.1 ติดตั้ง Development</h2>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Clone repo</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/witthawiton2/wash-up-app.git</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> wash-up-app</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Install dependencies</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> install</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="co"># สร้าง local database (ต้องมี PostgreSQL)</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="ex">createdb</span> washup_dev</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="co"># สร้าง .env.local</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&#39;DATABASE_URL=&quot;postgresql://YOUR_USERNAME@localhost:5432/washup_dev&quot;&#39;</span> <span class="op">&gt;</span> .env.local</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="bu">echo</span> <span class="st">&#39;DIRECT_URL=&quot;postgresql://YOUR_USERNAME@localhost:5432/washup_dev&quot;&#39;</span> <span class="op">&gt;&gt;</span> .env.local</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Push schema ไป local DB</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a><span class="ex">npx</span> prisma db push</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Seed ข้อมูลตัวอย่าง</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run seed</span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a><span class="co"># รัน dev server</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run dev</span></code></pre></div>
+<h2 id="environment-variables-.env">2.2 Environment Variables
+(.env)</h2>
+<table>
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 34%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr>
+<th>ตัวแปร</th>
+<th>คำอธิบาย</th>
+<th>ตัวอย่าง</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DATABASE_URL</code></td>
+<td>PostgreSQL connection (pooler)</td>
+<td><code>postgresql://...@pooler.supabase.com:6543/postgres</code></td>
+</tr>
+<tr>
+<td><code>DIRECT_URL</code></td>
+<td>PostgreSQL direct connection</td>
+<td><code>postgresql://...@supabase.com:5432/postgres</code></td>
+</tr>
+<tr>
+<td><code>LINE_CHANNEL_ACCESS_TOKEN</code></td>
+<td>LINE Messaging API token</td>
+<td><code>f7d80T2+...</code></td>
+</tr>
+<tr>
+<td><code>NEXT_PUBLIC_BASE_URL</code></td>
+<td>URL ของเว็บ (สำหรับ receipt image)</td>
+<td><code>https://wash-up-app.vercel.app</code></td>
+</tr>
+<tr>
+<td><code>NEXT_PUBLIC_LIFF_ID</code></td>
+<td>LINE LIFF ID</td>
+<td><code>2008067718-xdvXoaP2</code></td>
+</tr>
+<tr>
+<td><code>PROMPTPAY_ACCOUNT</code></td>
+<td>เลขบัญชี PromptPay</td>
+<td><code>0431839954</code></td>
+</tr>
+<tr>
+<td><code>PROMPTPAY_NAME</code></td>
+<td>ชื่อบัญชี</td>
+<td><code>นส.หฤทัย หะมูซอ</code></td>
+</tr>
+<tr>
+<td><code>ADMIN_LINE_USER_ID</code></td>
+<td>LINE userId ของแอดมิน (สำหรับแจ้งเตือน)</td>
+<td><code>U1234...</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="บญชทดสอบ">2.3 บัญชีทดสอบ</h2>
+<table>
+<thead>
+<tr>
+<th>Username</th>
+<th>Password</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>admin</td>
+<td>1234</td>
+<td>ผู้จัดการ</td>
+</tr>
+<tr>
+<td>staff</td>
+<td>1234</td>
+<td>พนง.ทั่วไป</td>
+</tr>
+<tr>
+<td>driver</td>
+<td>1234</td>
+<td>พนง.รับส่ง</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="คมอการใชงาน-แอดมนผจดการ">3. คู่มือการใช้งาน — แอดมิน/ผู้จัดการ</h1>
+<h2 id="dashboard">3.1 Dashboard</h2>
+<ul>
+<li>แสดงสรุปข้อมูลทั้งหมด: ออเดอร์วันนี้, รายได้วันนี้, จองวันนี้, รอเติมแพ็คเกจ</li>
+<li>กราฟรายได้ 7 วันล่าสุด + กราฟจำนวนออเดอร์</li>
+<li>สัดส่วนสถานะ, รายการยอดนิยม, ลูกค้า Top 5</li>
+<li>ออเดอร์ล่าสุด 5 รายการ</li>
+</ul>
+<h2 id="จดการลกคา-customer">3.2 จัดการลูกค้า (Customer)</h2>
+<p><strong>แท็บ:</strong> - ทั้งหมด — แสดงลูกค้าทุกคน - รอยืนยัน —
+ลูกค้าที่สมัครใหม่หรือขอเติมแพ็คเกจ</p>
+<p><strong>การดำเนินการ:</strong> 1. <strong>เพิ่มลูกค้า</strong> → กด “+
+เพิ่มลูกค้าใหม่” → กรอกชื่อ, เบอร์โทร, ที่อยู่, เลือกแพ็คเกจ 2.
+<strong>ยืนยันลูกค้าใหม่</strong> → แท็บ “รอยืนยัน” → กดปุ่ม “ยืนยัน” 3.
+<strong>เติมแพ็คเกจ</strong> → กดปุ่ม “เติมแพ็คเกจ” → ดูสลิป → ยืนยัน 4.
+<strong>ตั้งรหัสลูกค้า</strong> → แก้ไข → กรอก “รหัสลูกค้า” 5.
+<strong>ค้นหา</strong> → พิมพ์ชื่อ/เบอร์/รหัสในช่องค้นหา</p>
+<h2 id="จดการรายการสนคา-services">3.3 จัดการรายการสินค้า (Services)</h2>
+<ul>
+<li>เพิ่ม/แก้ไข/ลบ รายการบริการ (เสื้อ, กางเกง, ฯลฯ)</li>
+<li>ตั้งราคา, หมวดหมู่ (ในแพ็คเกจ/ซักอบรีด/ซักแห้ง/รีด/ซักพับ)</li>
+<li>ตั้งชื่อภาษาอังกฤษ</li>
+<li>ตั้งค่า “อยู่ในแพ็คเกจ” + จำนวนตัดแพ็คเกจต่อชิ้น</li>
+</ul>
+<h2 id="จดการแพคเกจ-packages">3.4 จัดการแพ็คเกจ (Packages)</h2>
+<ul>
+<li>เพิ่ม/แก้ไข แพ็คเกจ (ชื่อ, จำนวนชิ้น, วันที่ใช้ได้, ราคา)</li>
+<li>ตัวอย่าง: S (30 ชิ้น/60 วัน/700฿), M (40 ชิ้น/60 วัน/850฿)</li>
+</ul>
+<h2 id="จดการผใช-users">3.5 จัดการผู้ใช้ (Users)</h2>
+<ul>
+<li>เพิ่ม/แก้ไข/ลบ ผู้ใช้ (admin, staff, driver)</li>
+<li>เปิด/ปิดการใช้งาน</li>
+</ul>
+<h2 id="สรป-summary">3.6 สรุป (Summary)</h2>
+<ul>
+<li>รายงานรายวัน: รายได้, จำนวนออเดอร์, จำนวนชิ้น</li>
+<li>รายการผ้ายอดนิยม</li>
+<li>ปุ่ม Export CSV (ออเดอร์ / ลูกค้า)</li>
+</ul>
+<h2 id="การจอง-bookings">3.7 การจอง (Bookings)</h2>
+<ul>
+<li>แสดงรายการจองทั้งหมดจากลูกค้า</li>
+<li>ข้อมูล: เลขออเดอร์, ลูกค้า, วันที่จอง, เวลา, สถานะ</li>
+</ul>
+<hr />
+<h1 id="คมอการใชงาน-พนกงานทวไป">4. คู่มือการใช้งาน — พนักงานทั่วไป</h1>
+<h2 id="สรางออเดอรซก-laundry">4.1 สร้างออเดอร์ซัก (Laundry)</h2>
+<ol type="1">
+<li>กด <strong>“+ เพิ่มออเดอร์ซัก”</strong></li>
+<li>เลขออเดอร์จะรันอัตโนมัติ (000001, 000002, …)</li>
+<li><strong>เลือกลูกค้า</strong> — dropdown ค้นหาได้ / หรือพิมพ์ชื่อลูกค้าทั่วไป</li>
+<li><strong>เลือกรายการผ้า:</strong>
+<ul>
+<li>กดปุ่มหมวด (แพ็คเกจ / ซักอบรีด / ซักแห้ง / รีด / ซักพับ)</li>
+<li>เลือกรายการจาก dropdown</li>
+<li>ตั้งจำนวนและราคา</li>
+<li>กด “+ เพิ่มรายการ” เพื่อเพิ่มผ้าอีกชิ้น</li>
+</ul></li>
+<li><strong>ไม้แขวน</strong> — กรอกจำนวนไม้แขวนที่มี/ซื้อ (5฿/อัน)</li>
+<li><strong>ส่วนลด</strong> — กรอก % หรือกดปุ่ม 5% / 10%</li>
+<li><strong>ถ่ายรูปตรวจกระเป๋า</strong> — ถ่ายรูปของที่ลืมในกระเป๋า</li>
+<li><strong>หมายเหตุ</strong> — กรอกถ้ามี</li>
+<li>กด <strong>“บันทึก”</strong></li>
+</ol>
+<p><strong>หลังบันทึก:</strong> - ระบบจะส่งใบเสร็จผ่าน LINE ให้ลูกค้าอัตโนมัติ -
+ถ้าเปิด Auto Print → ปริ้นบิลอัตโนมัติ - ตัดจำนวนชิ้นจากแพ็คเกจลูกค้า (ถ้ามี) - แจ้งเตือน
+LINE ถ้ายอดแพ็คเกจเหลือ &lt; 10 ชิ้น</p>
+<h2 id="เปลยนสถานะ-พรอมสง">4.2 เปลี่ยนสถานะ “พร้อมส่ง”</h2>
+<ul>
+<li>กดปุ่ม <strong>“พร้อมส่ง”</strong> ในรายการ → สถานะเปลี่ยนเป็น
+“พร้อมส่ง”</li>
+<li>ระบบส่ง LINE แจ้งลูกค้าว่าซักเสร็จ + ลิงก์จองคิว</li>
+</ul>
+<h2 id="แกไขออเดอร">4.3 แก้ไขออเดอร์</h2>
+<ul>
+<li>กดปุ่ม <strong>“แก้ไข”</strong> (เฉพาะสถานะ “รอซักรีด”)</li>
+<li>แก้รายการ/จำนวน → บันทึก → ส่ง LINE ใบเสร็จแก้ไขอัตโนมัติ</li>
+</ul>
+<h2 id="ปรนบล-ดบล-สง-line">4.4 ปริ้นบิล / ดูบิล / ส่ง LINE</h2>
+<ul>
+<li><strong>ปริ้นบิล</strong> → เปิด print dialog (กระดาษ 80mm)</li>
+<li><strong>บิล</strong> → ดูตัวอย่างใบเสร็จ</li>
+<li><strong>ส่ง LINE</strong> → ส่งรูปใบเสร็จไปทาง LINE</li>
+</ul>
+<h2 id="auto-print">4.5 Auto Print</h2>
+<ul>
+<li>กดปุ่ม 🖨️ <strong>Auto Print</strong> ที่มุมขวาบน</li>
+<li>เขียว = เปิด (ปริ้นอัตโนมัติหลังสร้างออเดอร์)</li>
+<li>เทา = ปิด</li>
+</ul>
+<h2 id="รดผา-ironing">4.6 รีดผ้า (Ironing)</h2>
+<ol type="1">
+<li>เข้าหน้า <strong>Ironing</strong></li>
+<li>แสดงออเดอร์ทั้งหมดเป็น card</li>
+<li>ติ๊ก checkbox แต่ละรายการที่รีดเสร็จ</li>
+<li>เมื่อติ๊กครบ → กดปุ่ม <strong>“รีดเสร็จ → พร้อมส่ง”</strong></li>
+<li>สถานะเปลี่ยนเป็น “พร้อมส่ง”</li>
+</ol>
+<hr />
+<h1 id="คมอการใชงาน-พนกงานรบสง">5. คู่มือการใช้งาน — พนักงานรับส่ง</h1>
+<h2 id="จดสง-delivery">5.1 จัดส่ง (Delivery)</h2>
+<ol type="1">
+<li>เข้าหน้า <strong>Delivery</strong></li>
+<li>แสดงรายการที่สถานะ “พร้อมส่ง” และ “ส่งแล้ว”</li>
+<li><strong>ส่งเสร็จ:</strong>
+<ul>
+<li>กดปุ่ม <strong>“ส่งเสร็จ”</strong></li>
+<li>ถ่ายรูปหลักฐานการส่ง (หลายรูปได้)</li>
+<li>กด <strong>“ยืนยันส่งเสร็จ”</strong></li>
+</ul></li>
+<li>สถานะเปลี่ยนเป็น “ส่งแล้ว”</li>
+<li>ระบบส่ง LINE แจ้งลูกค้าว่าส่งแล้ว</li>
+</ol>
+<hr />
+<h1 id="คมอการใชงาน-ลกคา">6. คู่มือการใช้งาน — ลูกค้า</h1>
+<h2 id="สมครสมาชก">6.1 สมัครสมาชิก</h2>
+<ol type="1">
+<li>ลูกค้าเปิดลิงก์ LINE LIFF → ไปหน้า <code>/register</code></li>
+<li>กรอก: ชื่อ, นามสกุล, เบอร์โทร, LINE ID, ที่อยู่</li>
+<li>เลือกแพ็คเกจ</li>
+<li>กด “ลงทะเบียน”</li>
+<li><strong>รอแอดมินยืนยัน</strong> → หลังยืนยัน จำนวนชิ้นจะถูกเพิ่ม</li>
+</ol>
+<h2 id="customer-portal-my">6.2 Customer Portal (/my)</h2>
+<p>ลูกค้าเดิมเปิดลิงก์ → redirect ไป <code>/my</code> อัตโนมัติ</p>
+<p><strong>Tab รายการ:</strong> - ดูออเดอร์ทั้งหมด + สถานะ</p>
+<p><strong>Tab เติมแพ็คเกจ:</strong> 1. เลือกแพ็คเกจ 2. สแกน QR PromptPay
+ชำระเงิน 3. ถ่ายรูปสลิป 4. กด “ส่งคำขอเติมแพ็คเกจ” 5. รอแอดมินยืนยัน</p>
+<p><strong>Tab จองคิว:</strong> 1. เลือกกิจกรรม (ส่งผ้าซัก / รับผ้าคืน) 2.
+ถ้ารับผ้าคืน → เลือกออเดอร์ 3. เลือกช่วงเวลา (เช้า/บ่าย/เย็น) 4. เลือกวันที่ 5.
+เลือกเวลา 6. กรอกเบอร์โทร + หมายเหตุ 7. กด “จอง”</p>
+<hr />
+<h1 id="ขนตอนการทำงานหลก-workflow">7. ขั้นตอนการทำงานหลัก (Workflow)</h1>
+<pre><code>ลูกค้าสมัครสมาชิก (/register)
+        ↓
+แอดมินยืนยัน (Customer → รอยืนยัน)
+        ↓
+พนักงานรับผ้า → สร้างออเดอร์ (Laundry)
+  สถานะ: &quot;รอซักรีด&quot;
+  → ส่ง LINE บิล + ปริ้นบิล
+  → ตัดจำนวนแพ็คเกจ
+        ↓
+พนักงานรีดผ้า (Ironing)
+  → ติ๊ก checkbox แต่ละรายการ
+  → กดยืนยัน
+  สถานะ: &quot;พร้อมส่ง&quot;
+  → ส่ง LINE แจ้งลูกค้า + ลิงก์จองคิว
+        ↓
+ลูกค้าจองคิวรับผ้า (/my → จองคิว)
+  → แอดมินดูที่หน้า Bookings
+        ↓
+พนักงานจัดส่ง (Delivery)
+  → ถ่ายรูปหลักฐาน
+  → กดส่งเสร็จ
+  สถานะ: &quot;ส่งแล้ว&quot;
+  → ส่ง LINE แจ้งลูกค้า</code></pre>
+<h2 id="แจงเตอน-line-อตโนมต">7.1 แจ้งเตือน LINE อัตโนมัติ</h2>
+<table>
+<thead>
+<tr>
+<th>เหตุการณ์</th>
+<th>ส่งถึง</th>
+<th>ข้อความ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>สร้างออเดอร์</td>
+<td>ลูกค้า</td>
+<td>ใบเสร็จ (รูปภาพ)</td>
+</tr>
+<tr>
+<td>แก้ไขออเดอร์</td>
+<td>ลูกค้า</td>
+<td>ใบเสร็จแก้ไข (รูปภาพ)</td>
+</tr>
+<tr>
+<td>ซักเสร็จ (พร้อมส่ง)</td>
+<td>ลูกค้า</td>
+<td>ข้อความ + ลิงก์จองคิว</td>
+</tr>
+<tr>
+<td>จัดส่งเสร็จ</td>
+<td>ลูกค้า</td>
+<td>ข้อความ + รูปหลักฐาน</td>
+</tr>
+<tr>
+<td>ยอดแพ็คเกจ &lt; 10</td>
+<td>ลูกค้า</td>
+<td>แจ้งเตือนเติมแพ็คเกจ</td>
+</tr>
+<tr>
+<td>แพ็คเกจหมดอายุ</td>
+<td>ลูกค้า</td>
+<td>แจ้งเตือนต่ออายุ</td>
+</tr>
+<tr>
+<td>สมัครสมาชิกใหม่</td>
+<td>แอดมิน</td>
+<td>แจ้งเตือนยืนยัน</td>
+</tr>
+<tr>
+<td>ขอเติมแพ็คเกจ</td>
+<td>แอดมิน</td>
+<td>แจ้งเตือนตรวจสลิป</td>
+</tr>
+<tr>
+<td>จองคิวใหม่</td>
+<td>แอดมิน</td>
+<td>แจ้งเตือนการจอง</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="technical-documentation">8. Technical Documentation</h1>
+<h2 id="project-structure">8.1 Project Structure</h2>
+<pre><code>wash-up-app/
+├── app/
+│   ├── api/                  # API Routes
+│   │   ├── auth/login/       # Login API
+│   │   ├── bookings/         # Bookings API
+│   │   ├── customers/        # Customer CRUD
+│   │   ├── deliveries/       # Delivery API
+│   │   ├── export/           # CSV Export
+│   │   ├── line/send-receipt/# LINE send receipt
+│   │   ├── my/orders/        # Customer portal orders
+│   │   ├── my/booking/       # Customer booking
+│   │   ├── notifications/    # Badge counts
+│   │   ├── orders/           # Order CRUD
+│   │   ├── packages/         # Package CRUD
+│   │   ├── promptpay-qr/     # QR generation
+│   │   ├── receipt/[orderId]/# Receipt image
+│   │   ├── register/         # Customer registration
+│   │   ├── renew/            # Package renewal
+│   │   ├── service-items/    # Service item CRUD
+│   │   ├── summary/          # Dashboard summary
+│   │   ├── upload/           # File upload
+│   │   └── users/            # User CRUD
+│   ├── dashboard/            # Admin dashboard pages
+│   │   ├── bookings/
+│   │   ├── customer/
+│   │   ├── delivery/
+│   │   ├── ironing/
+│   │   ├── laundry/
+│   │   ├── packages/
+│   │   ├── services/
+│   │   ├── summary/
+│   │   ├── users/
+│   │   └── page.tsx          # Main dashboard
+│   ├── login/
+│   ├── my/                   # Customer portal
+│   ├── register/             # LINE LIFF registration
+│   ├── globals.css
+│   └── layout.tsx
+├── components/
+│   ├── DashboardLayout.tsx
+│   ├── ErrorBoundary.tsx
+│   ├── Modal.tsx
+│   ├── Pagination.tsx
+│   ├── PWARegister.tsx
+│   ├── Sidebar.tsx
+│   └── Spinner.tsx
+├── lib/
+│   ├── api-auth.ts           # API authentication
+│   ├── audit.ts              # Audit logging
+│   ├── auth-context.tsx      # React auth context
+│   ├── base-url.ts
+│   ├── i18n.ts               # Internationalization
+│   ├── line-api.ts           # LINE Messaging API
+│   ├── notify-admin.ts       # Admin LINE notifications
+│   ├── print-settings.ts     # Print configuration
+│   ├── prisma.ts             # Prisma client
+│   ├── promptpay-qr.ts       # PromptPay QR generator
+│   ├── qr-data.ts            # QR data URI
+│   ├── rate-limit.ts         # Rate limiting
+│   └── use-polling.ts        # Auto-refresh hook
+├── prisma/
+│   ├── schema.prisma         # Database schema
+│   └── seed.ts               # Seed data
+├── public/
+│   ├── icons/                # PWA icons
+│   ├── images/
+│   ├── manifest.json         # PWA manifest
+│   └── sw.js                 # Service Worker
+├── scripts/
+│   └── backup.sh             # DB backup script
+├── middleware.ts              # Rate limiting middleware
+└── .github/workflows/ci.yml  # CI/CD</code></pre>
+<h2 id="authentication-flow">8.2 Authentication Flow</h2>
+<pre><code>1. User → POST /api/auth/login { username, password }
+2. Server → ตรวจ password (bcrypt hash หรือ plain text)
+3. Server → return { username, name, role }
+4. Client → เก็บใน sessionStorage (&quot;washup_user&quot;)
+5. AuthContext → อ่านจาก sessionStorage
+6. DashboardLayout → redirect ไป /login ถ้าไม่มี user
+7. Sidebar → filter menu ตาม role</code></pre>
+<h2 id="order-status-flow">8.3 Order Status Flow</h2>
+<pre><code>รอซักรีด → พร้อมส่ง → ส่งแล้ว</code></pre>
+<h2 id="package-deduction-logic">8.4 Package Deduction Logic</h2>
+<ol type="1">
+<li>สร้างออเดอร์ → ดู ServiceItem.inPackage</li>
+<li>ถ้า inPackage &amp;&amp; ลูกค้ามีแพ็คเกจ → ราคา = 0, ตัด qty *
+packageDeduction จาก customer.remaining</li>
+<li>แก้ไขออเดอร์ → คำนวณส่วนต่าง (เพิ่ม/ลด) แล้วปรับ remaining</li>
+</ol>
+<h2 id="receipt-generation">8.5 Receipt Generation</h2>
+<ul>
+<li>API: <code>GET /api/receipt/{orderId}</code></li>
+<li>ใช้ <code>@vercel/og</code> (Satori) สร้างรูป PNG จาก JSX</li>
+<li>รองรับ QR Code PromptPay พร้อมยอดเงิน</li>
+<li>ขนาด 500px width, ความสูงตามจำนวนรายการ</li>
+</ul>
+<h2 id="real-time-features">8.6 Real-time Features</h2>
+<ul>
+<li><strong>Polling:</strong> ทุก 30 วินาที (usePolling hook)</li>
+<li><strong>Notification Badge:</strong> Sidebar แสดงจำนวนรอดำเนินการ
+refresh ทุก 30 วินาที</li>
+</ul>
+<h2 id="security">8.7 Security</h2>
+<ul>
+<li><strong>Password:</strong> bcrypt hash (รองรับ plain text ในช่วง
+migration)</li>
+<li><strong>Rate Limiting:</strong> 120 requests/นาที/IP
+(middleware.ts)</li>
+<li><strong>Error Boundary:</strong> จับ error ไม่ให้หน้าค้างขาว</li>
+</ul>
+<hr />
+<h1 id="database-schema">9. Database Schema</h1>
+<h2 id="ตาราง">9.1 ตาราง</h2>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>คำอธิบาย</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User</td>
+<td>ผู้ใช้ระบบ (admin, staff, driver)</td>
+</tr>
+<tr>
+<td>Customer</td>
+<td>ลูกค้า</td>
+</tr>
+<tr>
+<td>Order</td>
+<td>ออเดอร์ซักรีด</td>
+</tr>
+<tr>
+<td>OrderItem</td>
+<td>รายการผ้าในออเดอร์</td>
+</tr>
+<tr>
+<td>Delivery</td>
+<td>ข้อมูลจัดส่ง</td>
+</tr>
+<tr>
+<td>ServiceItem</td>
+<td>รายการบริการ (เสื้อ, กางเกง, ฯลฯ)</td>
+</tr>
+<tr>
+<td>Package</td>
+<td>แพ็คเกจสมาชิก (S, M, L)</td>
+</tr>
+<tr>
+<td>Payment</td>
+<td>ประวัติการชำระเงิน</td>
+</tr>
+<tr>
+<td>AuditLog</td>
+<td>ประวัติการดำเนินการ</td>
+</tr>
+<tr>
+<td>Promotion</td>
+<td>โปรโมชัน (ยังไม่ใช้งาน)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ความสมพนธ">9.2 ความสัมพันธ์</h2>
+<pre><code>Customer 1→N Order
+Order 1→N OrderItem
+Order 1→1 Delivery
+Customer 1→N Payment</code></pre>
+<hr />
+<h1 id="api-reference">10. API Reference</h1>
+<h2 id="authentication">10.1 Authentication</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>คำอธิบาย</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>POST</td>
+<td>/api/auth/login</td>
+<td>เข้าสู่ระบบ</td>
+</tr>
+</tbody>
+</table>
+<h2 id="orders">10.2 Orders</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>คำอธิบาย</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td>/api/orders</td>
+<td>ดึงออเดอร์ทั้งหมด</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>/api/orders</td>
+<td>สร้างออเดอร์</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td>/api/orders</td>
+<td>แก้ไขออเดอร์/เปลี่ยนสถานะ</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td>/api/orders?orderId=xxx</td>
+<td>ลบออเดอร์</td>
+</tr>
+</tbody>
+</table>
+<h2 id="customers">10.3 Customers</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>คำอธิบาย</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td>/api/customers</td>
+<td>ดึงลูกค้าทั้งหมด</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>/api/customers</td>
+<td>เพิ่มลูกค้า</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td>/api/customers</td>
+<td>แก้ไขลูกค้า</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td>/api/customers?id=xxx</td>
+<td>ลบลูกค้า</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>/api/customers/approve</td>
+<td>ยืนยันลูกค้า</td>
+</tr>
+</tbody>
+</table>
+<h2 id="delivery">10.4 Delivery</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>คำอธิบาย</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td>/api/deliveries</td>
+<td>ดึงรายการจัดส่ง</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td>/api/deliveries</td>
+<td>อัพเดตสถานะจัดส่ง</td>
+</tr>
+</tbody>
+</table>
+<h2 id="others">10.5 Others</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>คำอธิบาย</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET</td>
+<td>/api/service-items</td>
+<td>รายการบริการ</td>
+</tr>
+<tr>
+<td>GET</td>
+<td>/api/packages</td>
+<td>แพ็คเกจ</td>
+</tr>
+<tr>
+<td>GET</td>
+<td>/api/users</td>
+<td>ผู้ใช้</td>
+</tr>
+<tr>
+<td>GET</td>
+<td>/api/summary</td>
+<td>ข้อมูลสรุป Dashboard</td>
+</tr>
+<tr>
+<td>GET</td>
+<td>/api/bookings</td>
+<td>รายการจอง</td>
+</tr>
+<tr>
+<td>GET</td>
+<td>/api/notifications</td>
+<td>จำนวน badge</td>
+</tr>
+<tr>
+<td>GET</td>
+<td>/api/export?type=orders</td>
+<td>Export CSV</td>
+</tr>
+<tr>
+<td>GET</td>
+<td>/api/receipt/{orderId}</td>
+<td>รูปใบเสร็จ</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>/api/register</td>
+<td>สมัครสมาชิก</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>/api/renew</td>
+<td>เติมแพ็คเกจ</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>/api/my/booking</td>
+<td>จองคิว</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>/api/upload</td>
+<td>อัพโหลดรูป</td>
+</tr>
+<tr>
+<td>POST</td>
+<td>/api/line/send-receipt</td>
+<td>ส่งใบเสร็จ LINE</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h1 id="การ-deploy-และ-maintenance">11. การ Deploy และ Maintenance</h1>
+<h2 id="deploy-to-vercel">11.1 Deploy to Vercel</h2>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run build</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Deploy</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="ex">vercel</span> <span class="at">--prod</span> <span class="at">--yes</span></span></code></pre></div>
+<h2 id="push-schema-to-production">11.2 Push Schema to Production</h2>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npx</span> prisma db push</span></code></pre></div>
+<h2 id="backup-database">11.3 Backup Database</h2>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run backup</span></code></pre></div>
+<p>ไฟล์ backup จะอยู่ที่
+<code>./backups/washup_backup_YYYYMMDD_HHMMSS.sql.gz</code></p>
+<h2 id="seed-data">11.4 Seed Data</h2>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run seed</span></code></pre></div>
+<h2 id="cicd-github-actions">11.5 CI/CD (GitHub Actions)</h2>
+<ul>
+<li>Push ไป <code>main</code> → auto build + type check + deploy to
+Vercel</li>
+<li>ต้องตั้ง GitHub Secrets: <code>VERCEL_TOKEN</code>,
+<code>VERCEL_ORG_ID</code>, <code>VERCEL_PROJECT_ID</code></li>
+</ul>
+<hr />
+<p><em>เอกสารนี้อัพเดตล่าสุด: เมษายน 2569</em> <em>Wash Up Laundry Management
+System v1.0</em></p>
+</body>
+</html>

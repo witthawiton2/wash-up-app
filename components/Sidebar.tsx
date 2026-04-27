@@ -1,25 +1,44 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth, Role } from "@/lib/auth-context";
+import {
+  LayoutDashboard,
+  Users,
+  Truck,
+  Shirt,
+  Flame,
+  ClipboardList,
+  Package,
+  CalendarCheck,
+  UserCog,
+  BarChart3,
+  Moon,
+  Globe,
+  LogOut,
+  type LucideIcon,
+} from "lucide-react";
 
 interface MenuItem {
   href: string;
   label: string;
-  icon: string;
+  icon: LucideIcon;
   roles: Role[];
 }
 
 const menuItems: MenuItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: "\u{1F3E0}", roles: ["admin"] },
-  { href: "/dashboard/customer", label: "Customer", icon: "\u{1F464}", roles: ["admin", "staff"] },
-  { href: "/dashboard/delivery", label: "Delivery", icon: "\u{1F69A}", roles: ["admin", "driver"] },
-  { href: "/dashboard/laundry", label: "Laundry", icon: "\u{1F455}", roles: ["admin", "staff"] },
-  { href: "/dashboard/services", label: "รายการสินค้า", icon: "\u{1F4CB}", roles: ["admin", "staff"] },
-  { href: "/dashboard/packages", label: "แพ็คเกจ", icon: "\u{1F4E6}", roles: ["admin"] },
-  { href: "/dashboard/users", label: "User", icon: "\u{1F465}", roles: ["admin"] },
-  { href: "/dashboard/summary", label: "Summary", icon: "\u{1F4CA}", roles: ["admin"] },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin"] },
+  { href: "/dashboard/customer", label: "Customer", icon: Users, roles: ["admin", "staff"] },
+  { href: "/dashboard/delivery", label: "Delivery", icon: Truck, roles: ["admin", "driver"] },
+  { href: "/dashboard/laundry", label: "Laundry", icon: Shirt, roles: ["admin", "staff"] },
+  { href: "/dashboard/ironing", label: "Ironing", icon: Flame, roles: ["admin", "staff"] },
+  { href: "/dashboard/services", label: "รายการสินค้า", icon: ClipboardList, roles: ["admin", "staff"] },
+  { href: "/dashboard/packages", label: "แพ็คเกจ", icon: Package, roles: ["admin"] },
+  { href: "/dashboard/bookings", label: "การจอง", icon: CalendarCheck, roles: ["admin", "staff"] },
+  { href: "/dashboard/users", label: "User", icon: UserCog, roles: ["admin"] },
+  { href: "/dashboard/summary", label: "Summary", icon: BarChart3, roles: ["admin"] },
 ];
 
 const roleBadge: Record<Role, { label: string; bg: string }> = {
@@ -36,6 +55,28 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  const [badges, setBadges] = useState<Record<string, number>>({});
+
+  const fetchBadges = useCallback(async () => {
+    try {
+      const res = await fetch("/api/notifications");
+      if (res.ok) {
+        const data = await res.json();
+        setBadges({
+          "/dashboard/customer": data.pendingCustomers + data.renewPending,
+          "/dashboard/bookings": data.todayBookings,
+          "/dashboard/laundry": data.pendingOrders,
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchBadges();
+    const interval = setInterval(fetchBadges, 30000); // refresh every 30s
+    return () => clearInterval(interval);
+  }, [fetchBadges]);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -62,22 +103,22 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         style={{ backgroundColor: "var(--sidebar-bg)" }}
       >
         {/* Logo */}
-        <div className="flex items-center justify-center h-20 border-b border-slate-700">
+        <div className="flex items-center justify-center h-20 border-b border-white/5">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-white tracking-wider">
+            <h1 className="text-2xl font-bold tracking-[0.2em]" style={{ background: "linear-gradient(135deg, #60a5fa, #818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               WASH UP
             </h1>
-            <p className="text-xs text-slate-400 mt-0.5">Laundry Management</p>
+            <p className="text-[10px] text-slate-500 mt-0.5 tracking-widest uppercase">Laundry Management</p>
           </div>
         </div>
 
         {/* User Info */}
         {user && (
-          <div className="px-4 py-4 border-b border-slate-700">
+          <div className="px-4 py-4 border-b border-white/5">
             <div className="flex items-center gap-3">
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                style={{ backgroundColor: roleBadge[user.role].bg }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-lg"
+                style={{ background: `linear-gradient(135deg, ${roleBadge[user.role].bg}, ${roleBadge[user.role].bg}cc)` }}
               >
                 {user.name.charAt(0).toUpperCase()}
               </div>
@@ -86,8 +127,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   {user.name}
                 </p>
                 <span
-                  className="inline-block text-xs text-white px-2 py-0.5 rounded-full mt-0.5"
-                  style={{ backgroundColor: roleBadge[user.role].bg }}
+                  className="inline-block text-[10px] text-white/80 px-2 py-0.5 rounded-full mt-0.5"
+                  style={{ backgroundColor: `${roleBadge[user.role].bg}40`, border: `1px solid ${roleBadge[user.role].bg}60` }}
                 >
                   {roleBadge[user.role].label}
                 </span>
@@ -118,24 +159,51 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       : { color: "var(--sidebar-text)" }
                   }
                 >
-                  <span className="text-lg">{item.icon}</span>
-                  <span>{item.label}</span>
+                  <item.icon className="w-5 h-5" strokeWidth={1.5} />
+                  <span className="flex-1">{item.label}</span>
+                  {badges[item.href] > 0 && (
+                    <span className="min-w-5 h-5 flex items-center justify-center rounded-full text-[10px] font-bold text-white bg-red-500 px-1">
+                      {badges[item.href]}
+                    </span>
+                  )}
                 </Link>
               </li>
             ))}
           </ul>
         </nav>
 
-        {/* Logout */}
-        <div className="p-4 border-t border-slate-700">
+        {/* Settings + Logout */}
+        <div className="p-3 border-t border-white/5 space-y-1.5">
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => {
+                const isDark = document.documentElement.classList.toggle("dark");
+                localStorage.setItem("washup_dark", isDark ? "1" : "0");
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"
+            >
+              <Moon className="w-3.5 h-3.5" />
+              Dark
+            </button>
+            <button
+              onClick={() => {
+                const cur = localStorage.getItem("washup_lang") || "th";
+                const next = cur === "th" ? "en" : "th";
+                localStorage.setItem("washup_lang", next);
+                window.location.reload();
+              }}
+              className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              {typeof window !== "undefined" && localStorage.getItem("washup_lang") === "en" ? "TH" : "EN"}
+            </button>
+          </div>
           <button
             onClick={logout}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-all duration-200 hover:opacity-90"
-            style={{ backgroundColor: "#ef4444" }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white transition-all duration-200 hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)" }}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <LogOut className="w-4 h-4" />
             ออกจากระบบ
           </button>
         </div>

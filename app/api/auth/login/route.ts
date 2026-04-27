@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import bcrypt from "bcryptjs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +18,10 @@ export async function POST(request: NextRequest) {
       where: { username },
     });
 
-    if (!user || user.password !== password) {
+    // Support both bcrypt hashed and plain text passwords (migration period)
+    const isHashed = user?.password?.startsWith("$2");
+    const passwordMatch = user && (isHashed ? await bcrypt.compare(password, user.password) : user.password === password);
+    if (!user || !passwordMatch) {
       return NextResponse.json(
         { error: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" },
         { status: 401 }

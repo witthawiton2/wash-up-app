@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Modal, { ConfirmDelete } from "@/components/Modal";
+import Spinner from "@/components/Spinner";
+import Pagination, { usePagination } from "@/components/Pagination";
+import { usePolling } from "@/lib/use-polling";
 
 interface LaundryItem {
   name: string;
@@ -90,10 +93,17 @@ export default function LaundryPage() {
   const [originalItems, setOriginalItems] = useState<LaundryItem[]>([]);
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<LaundryOrder | null>(null);
   const [sending, setSending] = useState<string | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Record<number, string>>({});
+  const [autoPrint, setAutoPrint] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("washup_auto_print");
+    if (saved === "true") setAutoPrint(true);
+  }, []);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -139,6 +149,8 @@ export default function LaundryPage() {
     fetchServiceItems();
   }, [fetchOrders, fetchCustomers, fetchServiceItems]);
 
+  usePolling(fetchOrders, 30000);
+
   const handleSelectServiceItem = (index: number, idStr: string) => {
     const svc = serviceItems.find((s) => s.id === Number(idStr));
     const custHasPackage = selectedCustomer?.package && selectedCustomer.remaining > 0;
@@ -166,6 +178,8 @@ export default function LaundryPage() {
     }
     return list;
   })();
+
+  const { paged, currentPage, totalPages, totalItems, itemsPerPage, setCurrentPage } = usePagination(filtered, 20);
 
   const generateOrderId = () => {
     const maxNum = orders.reduce((max, o) => {
@@ -254,11 +268,13 @@ export default function LaundryPage() {
   };
 
   const handleSave = async () => {
+    if (saving) return;
     const cleanedItems = editing.items.filter((i) => i.name.trim() !== "");
     if (cleanedItems.length === 0) return;
     const walkIn = editing.customerId ? "" : customerSearch.trim();
     if (!editing.customerId && !walkIn) return;
 
+    setSaving(true);
     try {
       if (editingOrderId) {
         // Edit existing
@@ -326,8 +342,8 @@ export default function LaundryPage() {
             }).catch(() => {});
           }
 
-          // Auto print
-          printReceipt({
+          // Auto print (if enabled)
+          if (autoPrint) printReceipt({
             id: 0,
             orderId: editing.orderId,
             customerId: editing.customerId,
@@ -353,6 +369,8 @@ export default function LaundryPage() {
       }
     } catch (error) {
       console.error("Failed to save order:", error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -428,6 +446,8 @@ export default function LaundryPage() {
 <div class="line"></div>
 <div style="margin:4px 0">
   <div>${o.customer}</div>
+  <div>โทร: ${o.phone || "-"}</div>
+  <div>ที่อยู่: ${o.address || "-"}</div>
   <div>วันที่: ${o.date}</div>
 </div>
 <div class="line"></div>
@@ -516,19 +536,8 @@ ${o.discount > 0 ? `
   };
 
   const viewReceipt = (o: LaundryOrder) => {
-    const orderData = {
-      id: o.orderId,
-      customer: o.customer,
-      phone: o.phone,
-      items: o.items,
-      date: o.date,
-    };
-    const dataParam = btoa(
-      unescape(encodeURIComponent(JSON.stringify(orderData)))
-    );
-    setReceiptUrl(
-      `/api/receipt/${o.orderId}?data=${encodeURIComponent(dataParam)}`
-    );
+    // Load from DB directly to ensure correct packageRemaining
+    setReceiptUrl(`/api/receipt/${o.orderId}`);
   };
 
   const getCustomerLabel = (c: CustomerOption) => {
@@ -573,11 +582,30 @@ ${o.discount > 0 ? `
 
   return (
     <div>
+      {saving && <Spinner text="กำลังบันทึก..." />}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-slate-800">Laundry</h2>
-        <button className="btn-primary" onClick={openAdd}>
-          + เพิ่มออเดอร์ซัก
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              const next = !autoPrint;
+              setAutoPrint(next);
+              localStorage.setItem("washup_auto_print", String(next));
+            }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              autoPrint
+                ? "bg-green-50 border-green-300 text-green-700"
+                : "bg-slate-50 border-slate-300 text-slate-500"
+            }`}
+          >
+            <span>🖨️</span>
+            <span className="hidden sm:inline">Auto Print</span>
+            <span className={`w-2 h-2 rounded-full ${autoPrint ? "bg-green-500" : "bg-slate-300"}`} />
+          </button>
+          <button className="btn-primary" onClick={openAdd}>
+            + เพิ่มออเดอร์ซัก
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -607,7 +635,7 @@ ${o.discount > 0 ? `
         ) : filtered.length === 0 ? (
           <div className="text-center py-8 text-slate-400">ไม่มีรายการ</div>
         ) : (
-          filtered.map((o) => (
+          paged.map((o) => (
             <div key={o.orderId} className="card">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-bold text-blue-600 text-lg">{o.orderId}</span>
@@ -666,7 +694,7 @@ ${o.discount > 0 ? `
                   </td>
                 </tr>
               ) : (
-                filtered.map((o) => (
+                paged.map((o) => (
                   <tr key={o.orderId}>
                     <td className="font-medium text-blue-600">{o.orderId}</td>
                     <td>{o.customer}</td>
@@ -751,6 +779,7 @@ ${o.discount > 0 ? `
             </tbody>
           </table>
         </div>
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={totalItems} itemsPerPage={itemsPerPage} />
       </div>
 
       <Modal

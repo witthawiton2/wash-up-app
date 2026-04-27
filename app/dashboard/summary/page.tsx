@@ -79,7 +79,23 @@ export default function SummaryPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-slate-800 mb-6">Summary</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-slate-800">Summary</h2>
+        <div className="flex gap-2">
+          <a
+            href="/api/export?type=orders"
+            className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-md hover:bg-green-100"
+          >
+            Export ออเดอร์ CSV
+          </a>
+          <a
+            href="/api/export?type=customers"
+            className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-md hover:bg-blue-100"
+          >
+            Export ลูกค้า CSV
+          </a>
+        </div>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

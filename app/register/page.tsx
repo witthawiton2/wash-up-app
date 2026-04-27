@@ -52,6 +52,15 @@ export default function RegisterPage() {
       .then((data) => setPackages(data))
       .catch(() => {});
 
+    // Dev mode: skip LIFF login with ?testUserId=xxx
+    const params = new URLSearchParams(window.location.search);
+    const testUid = params.get("testUserId");
+    if (testUid) {
+      setLineUserId(testUid);
+      checkExistingCustomer(testUid);
+      return;
+    }
+
     const liffId = process.env.NEXT_PUBLIC_LIFF_ID;
     if (!liffId) {
       setMode("register");
@@ -79,9 +88,9 @@ export default function RegisterPage() {
     try {
       const res = await fetch(`/api/renew?lineUserId=${uid}`);
       if (res.ok) {
-        const data = await res.json();
-        setExistingCustomer(data);
-        setMode("renew");
+        // Existing customer → redirect to customer portal
+        window.location.href = "/my";
+        return;
       } else {
         setMode("register");
       }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { ClipboardList, Wallet, CalendarCheck, Package, TrendingUp, Users } from "lucide-react";
 
 interface ChartData {
   date: string;
@@ -55,10 +56,14 @@ export default function DashboardPage() {
     totalItems: 0,
     todayOrders: 0,
     todayRevenue: 0,
+    todayBookings: 0,
+    pendingRenewals: 0,
+    monthlyRevenue: 0,
   });
   const [statusCounts, setStatusCounts] = useState<Record<string, number>>({});
   const [last7, setLast7] = useState<ChartData[]>([]);
   const [topItems, setTopItems] = useState<TopItem[]>([]);
+  const [topCustomers, setTopCustomers] = useState<{ name: string; orders: number; revenue: number }[]>([]);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [customerCount, setCustomerCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -72,6 +77,7 @@ export default function DashboardPage() {
         setStatusCounts(data.statusCounts);
         setLast7(data.last7);
         setTopItems(data.topItems);
+        setTopCustomers(data.topCustomers || []);
         setRecentOrders(data.recentOrders);
         setCustomerCount(data.customerCount);
       }
@@ -103,22 +109,26 @@ export default function DashboardPage() {
       <h2 className="text-2xl font-bold text-slate-800 mb-6">Dashboard</h2>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {[
-          { label: "ออเดอร์วันนี้", value: String(totals.todayOrders), color: "#3b82f6", icon: "📋" },
-          { label: "รายได้วันนี้", value: `${totals.todayRevenue.toLocaleString()} ฿`, color: "#10b981", icon: "💰" },
-          { label: "ออเดอร์ทั้งหมด", value: String(totals.totalOrders), color: "#8b5cf6", icon: "📦" },
-          { label: "ลูกค้าทั้งหมด", value: String(customerCount), color: "#f59e0b", icon: "👥" },
+          { label: "ออเดอร์วันนี้", value: String(totals.todayOrders), color: "#3b82f6", bg: "#eff6ff", Icon: ClipboardList },
+          { label: "รายได้วันนี้", value: `${totals.todayRevenue.toLocaleString()} ฿`, color: "#10b981", bg: "#ecfdf5", Icon: Wallet },
+          { label: "จองวันนี้", value: String(totals.todayBookings), color: "#f59e0b", bg: "#fffbeb", Icon: CalendarCheck },
+          { label: "รอเติมแพ็คเกจ", value: String(totals.pendingRenewals), color: totals.pendingRenewals > 0 ? "#ef4444" : "#94a3b8", bg: totals.pendingRenewals > 0 ? "#fef2f2" : "#f8fafc", Icon: Package },
+          { label: "รายได้เดือนนี้", value: `${totals.monthlyRevenue.toLocaleString()} ฿`, color: "#8b5cf6", bg: "#f5f3ff", Icon: TrendingUp },
+          { label: "ลูกค้าทั้งหมด", value: String(customerCount), color: "#6366f1", bg: "#eef2ff", Icon: Users },
         ].map((card) => (
           <div key={card.label} className="card">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-slate-500">{card.label}</p>
+                <p className="text-xs font-medium" style={{ color: "var(--muted)" }}>{card.label}</p>
                 <p className="text-xl font-bold mt-1" style={{ color: card.color }}>
                   {card.value}
                 </p>
               </div>
-              <span className="text-2xl">{card.icon}</span>
+              <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ backgroundColor: card.bg }}>
+                <card.Icon className="w-5 h-5" style={{ color: card.color }} strokeWidth={1.5} />
+              </div>
             </div>
           </div>
         ))}
@@ -279,6 +289,27 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Top Customers */}
+      {topCustomers.length > 0 && (
+        <div className="card mb-6">
+          <h3 className="text-sm font-semibold text-slate-700 mb-4">ลูกค้า Top</h3>
+          <div className="space-y-2">
+            {topCustomers.map((c, i) => (
+              <div key={c.name} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-400 w-5">#{i + 1}</span>
+                  <span className="text-sm font-medium text-slate-700">{c.name}</span>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-bold text-blue-600">{c.orders} ออเดอร์</span>
+                  <span className="text-xs text-slate-400 ml-2">{c.revenue.toLocaleString()}฿</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Orders */}
       <div className="card">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Modal, { ConfirmDelete } from "@/components/Modal";
+import Spinner from "@/components/Spinner";
 
 interface ServiceItem {
   id: number;
@@ -41,6 +42,7 @@ export default function ServicesPage() {
   const [editing, setEditing] = useState<ServiceItem>(emptyItem);
   const [isEdit, setIsEdit] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<ServiceItem | null>(null);
+  const [saving, setSaving] = useState(false);
   const [filterCat, setFilterCat] = useState("ทั้งหมด");
 
   const fetchItems = useCallback(async () => {
@@ -76,7 +78,8 @@ export default function ServicesPage() {
   };
 
   const handleSave = async () => {
-    if (!editing.name.trim()) return;
+    if (!editing.name.trim() || saving) return;
+    setSaving(true);
     try {
       const method = isEdit ? "PUT" : "POST";
       const res = await fetch("/api/service-items", {
@@ -99,6 +102,8 @@ export default function ServicesPage() {
       }
     } catch (error) {
       console.error("Failed to save service item:", error);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -119,6 +124,7 @@ export default function ServicesPage() {
 
   return (
     <div>
+      {saving && <Spinner text="กำลังบันทึก..." />}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-slate-800">รายการสินค้า / บริการ</h2>
         <button className="btn-primary" onClick={openAdd}>+ เพิ่มรายการ</button>

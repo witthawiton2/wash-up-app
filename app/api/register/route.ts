@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { notifyAdminNewRegistration } from "@/lib/notify-admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +46,7 @@ export async function POST(request: NextRequest) {
         update: customerData,
         create: { ...customerData, lineUserId },
       });
+      notifyAdminNewRegistration(name).catch(() => {});
       return NextResponse.json({ success: true, customer });
     }
 
@@ -53,6 +55,7 @@ export async function POST(request: NextRequest) {
       data: customerData,
     });
 
+    notifyAdminNewRegistration(name).catch(() => {});
     return NextResponse.json({ success: true, customer });
   } catch (error) {
     console.error("Registration error:", error);

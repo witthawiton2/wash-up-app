@@ -313,8 +313,8 @@ export async function PUT(request: NextRequest) {
         const itemsList = orderWithCustomer.items
           .map((i) => `• ${i.itemName} x${i.quantity}`)
           .join("\n");
-        const message = `เสื้อผ้าของคุณลูกค้าเสร็จแล้วนะครับ 
-จองเวลานัดรับส่งที่สะดวกได้เลยครับ 🚚`;
+        const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://wash-up-app.vercel.app";
+        const message = `✅ ซักเสร็จแล้วครับ!\n\nออเดอร์: ${orderId}\n${itemsList}\n\nกดจองเวลานัดรับส่งได้เลยครับ 🚚\n${baseUrl}/my?tab=booking`;
         pushTextMessage(orderWithCustomer.customer.lineUserId, message).catch(
           (err) => console.error("Failed to send LINE ready notification:", err)
         );

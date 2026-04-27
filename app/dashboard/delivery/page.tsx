@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Modal from "@/components/Modal";
+import Spinner from "@/components/Spinner";
+import Pagination, { usePagination } from "@/components/Pagination";
+import { usePolling } from "@/lib/use-polling";
 
 interface DeliveryItem {
   name: string;
@@ -59,6 +62,8 @@ export default function DeliveryPage() {
     fetchDeliveries();
   }, [fetchDeliveries]);
 
+  usePolling(fetchDeliveries, 30000);
+
   const filtered = (() => {
     let list = activeFilter === "ทั้งหมด"
       ? deliveries
@@ -74,6 +79,8 @@ export default function DeliveryPage() {
     }
     return list;
   })();
+
+  const { paged, currentPage, totalPages, totalItems, itemsPerPage, setCurrentPage } = usePagination(filtered, 20);
 
   const openComplete = (d: DeliveryOrder) => {
     setCompleteTarget(d);
@@ -160,6 +167,7 @@ export default function DeliveryPage() {
 
   return (
     <div>
+      {submitting && <Spinner text="กำลังบันทึก..." />}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-slate-800">Delivery</h2>
       </div>
@@ -191,7 +199,7 @@ export default function DeliveryPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-8 text-slate-400">ไม่มีรายการ</div>
         ) : (
-          filtered.map((d) => (
+          paged.map((d) => (
             <div key={d.orderId} className="card">
               <div className="flex items-center justify-between mb-2">
                 <span className="font-bold text-blue-600 text-lg">{d.orderId}</span>
@@ -244,7 +252,7 @@ export default function DeliveryPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((d) => (
+                paged.map((d) => (
                   <tr key={d.orderId}>
                     <td className="font-medium text-blue-600">{d.orderId}</td>
                     <td>
@@ -271,22 +279,24 @@ export default function DeliveryPage() {
                     </td>
                     <td className="text-slate-500">{d.date}</td>
                     <td className="text-center whitespace-nowrap">
-                      {d.status === "พร้อมส่ง" && (
-                        <button
-                          onClick={() => openComplete(d)}
-                          className="text-green-600 hover:text-green-800 text-sm font-medium"
-                        >
-                          ส่งเสร็จ
-                        </button>
-                      )}
-                      {d.status === "ส่งแล้ว" && d.photoUrl && (
-                        <button
-                          onClick={() => openViewPhotos(d.photoUrl)}
-                          className="text-blue-500 hover:text-blue-700 text-sm font-medium"
-                        >
-                          ดูรูป
-                        </button>
-                      )}
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {d.status === "พร้อมส่ง" && (
+                          <button
+                            onClick={() => openComplete(d)}
+                            className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 px-2.5 py-1 rounded-md hover:bg-green-100"
+                          >
+                            ส่งเสร็จ
+                          </button>
+                        )}
+                        {d.status === "ส่งแล้ว" && d.photoUrl && (
+                          <button
+                            onClick={() => openViewPhotos(d.photoUrl)}
+                            className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md hover:bg-blue-100"
+                          >
+                            ดูรูป
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -294,6 +304,7 @@ export default function DeliveryPage() {
             </tbody>
           </table>
         </div>
+        <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={totalItems} itemsPerPage={itemsPerPage} />
       </div>
 
       {/* Modal: แนบรูปเมื่อส่งเสร็จ */}

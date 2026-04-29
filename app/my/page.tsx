@@ -26,6 +26,8 @@ interface MyOrder {
   totalAmount: number;
   date: string;
   requestedDeliveryDate: string | null;
+  paymentStatus: string;
+  paymentSlipUrl: string | null;
 }
 
 interface PackageOption {
@@ -73,6 +75,13 @@ export default function MyPage() {
   const [bookingNote, setBookingNote] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  // Payment slip upload
+  const [payOrderId, setPayOrderId] = useState<string | null>(null);
+  const [paySlipFile, setPaySlipFile] = useState<File | null>(null);
+  const [paySlipPreview, setPaySlipPreview] = useState("");
+  const [payLoading, setPayLoading] = useState(false);
+  const paySlipRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -218,6 +227,51 @@ export default function MyPage() {
     { id: "receive", label: "รับเสื้อผ้าที่เสร็จคืน (+ส่งเสื้อผ้าใหม่)" },
   ];
 
+  const handleSlipFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPaySlipFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setPaySlipPreview(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const openPayModal = (orderId: string) => {
+    setPayOrderId(orderId);
+    setPaySlipFile(null);
+    setPaySlipPreview("");
+  };
+
+  const handleUploadPayment = async () => {
+    if (!payOrderId || !paySlipFile || !lineUserId) return;
+    setPayLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", paySlipFile);
+      const upRes = await fetch("/api/upload", { method: "POST", body: formData });
+      const upData = await upRes.json();
+      if (!upData.success) {
+        alert("อัพโหลดสลิปไม่สำเร็จ");
+        return;
+      }
+      const res = await fetch("/api/my/payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lineUserId, orderId: payOrderId, slipUrl: upData.url }),
+      });
+      if (res.ok) {
+        setPayOrderId(null);
+        setPaySlipFile(null);
+        setPaySlipPreview("");
+        loadData(lineUserId);
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setPayLoading(false);
+    }
+  };
+
   const handleBooking = async () => {
     if (!bookingActivity || !bookingDate || !bookingTime || !lineUserId) return;
     setBookingLoading(true);
@@ -288,8 +342,8 @@ export default function MyPage() {
         <div className="absolute -bottom-20 -left-10 w-60 h-60 rounded-full" style={{ background: "radial-gradient(circle, rgba(59,130,246,0.2), transparent)" }} />
 
         <div className="relative z-10">
-          <h1 className="text-xl font-bold tracking-[0.15em] text-center mb-0.5" style={{ background: "linear-gradient(135deg, #93c5fd, #c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>WASH UP</h1>
-          <p className="text-blue-300/50 text-[10px] text-center tracking-widest uppercase mb-5">Laundry & Dry cleaning</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/logo.png" alt="Wash Up" className="h-12 mx-auto mb-4 brightness-0 invert opacity-90" />
 
           {/* Customer Card */}
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/10">
@@ -377,6 +431,29 @@ export default function MyPage() {
                         <span>จองส่งวันที่: {o.requestedDeliveryDate}</span>
                       </div>
                     )}
+
+                    {/* Payment status */}
+                    <div className="mt-3 pt-3 border-t border-slate-100">
+                      {o.paymentStatus === "paid" ? (
+                        <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 border border-emerald-200">
+                          <span>✅</span>
+                          <span className="font-medium">ชำระเงินเรียบร้อยแล้ว</span>
+                        </div>
+                      ) : o.paymentStatus === "pending" ? (
+                        <div className="flex items-center gap-2 text-xs text-orange-700 bg-orange-50 rounded-lg px-3 py-2 border border-orange-200">
+                          <span>⏳</span>
+                          <span className="font-medium">ส่งสลิปแล้ว — รอตรวจสอบ</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => openPayModal(o.orderId)}
+                          className="w-full py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
+                          style={{ background: "linear-gradient(135deg, #2563eb, #6366f1)" }}
+                        >
+                          💳 อัพโหลดสลิปการชำระ
+                        </button>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -637,6 +714,48 @@ export default function MyPage() {
           </div>
         )}
       </div>
+
+      {/* Payment Upload Modal */}
+      {payOrderId && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800">อัพโหลดสลิปการชำระ</h3>
+              <button onClick={() => setPayOrderId(null)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <p className="text-sm text-slate-500 mb-4">ออเดอร์: <span className="font-bold text-blue-600">{payOrderId}</span></p>
+
+            {paySlipPreview && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={paySlipPreview} alt="slip" className="w-full max-h-72 object-contain rounded-xl mb-3 border" />
+            )}
+            <input ref={paySlipRef} type="file" accept="image/*" capture="environment" onChange={handleSlipFileChange} className="hidden" />
+            <button
+              onClick={() => paySlipRef.current?.click()}
+              className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 text-sm text-slate-500 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+            >
+              {paySlipPreview ? "เปลี่ยนรูปสลิป" : "📷 ถ่ายรูป / เลือกรูปสลิป"}
+            </button>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setPayOrderId(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleUploadPayment}
+                disabled={!paySlipFile || payLoading}
+                className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #2563eb, #6366f1)" }}
+              >
+                {payLoading ? "กำลังส่ง..." : "ส่งสลิป"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Tab Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200/50 flex safe-area-bottom" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>

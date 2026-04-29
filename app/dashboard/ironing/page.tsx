@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Pagination, { usePagination } from "@/components/Pagination";
+import Modal from "@/components/Modal";
+import Spinner from "@/components/Spinner";
 import { usePolling } from "@/lib/use-polling";
 
 interface IroningItem {
@@ -34,7 +36,9 @@ export default function IroningPage() {
   const [activeFilter, setActiveFilter] = useState("ทั้งหมด");
   const [searchQuery, setSearchQuery] = useState("");
   const [checked, setChecked] = useState<Record<string, boolean[]>>({});
-  const [updating, setUpdating] = useState<string | null>(null);
+  const [showStaffModal, setShowStaffModal] = useState<string | null>(null);
+  const [staffList, setStaffList] = useState<{ id: number; name: string }[]>([]);
+  const [saving, setSaving] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -50,9 +54,20 @@ export default function IroningPage() {
     }
   }, []);
 
+  const fetchStaff = useCallback(async () => {
+    try {
+      const res = await fetch("/api/users");
+      if (res.ok) {
+        const data = await res.json();
+        setStaffList(data.filter((u: { role: string; active: boolean }) => u.role === "staff" && u.active));
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     fetchOrders();
-  }, [fetchOrders]);
+    fetchStaff();
+  }, [fetchOrders, fetchStaff]);
 
   usePolling(fetchOrders, 30000);
 
@@ -102,24 +117,33 @@ export default function IroningPage() {
     return c.filter(Boolean).length;
   };
 
-  const handleMarkReady = async (orderId: string) => {
-    setUpdating(orderId);
+  const handleOpenStaffModal = (orderId: string) => {
+    setShowStaffModal(orderId);
+  };
+
+  const handleSelectStaff = async (staffName: string) => {
+    if (!showStaffModal) return;
+    setSaving(true);
     try {
       const res = await fetch("/api/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, status: "พร้อมส่ง" }),
+        body: JSON.stringify({
+          orderId: showStaffModal,
+          note: `รีดโดย: ${staffName}`,
+        }),
       });
       if (res.ok) {
         await fetchOrders();
         const newChecked = { ...checked };
-        delete newChecked[orderId];
+        delete newChecked[showStaffModal];
         setChecked(newChecked);
+        setShowStaffModal(null);
       }
     } catch (error) {
-      console.error("Failed to update order:", error);
+      console.error("Failed to save ironing staff:", error);
     } finally {
-      setUpdating(null);
+      setSaving(false);
     }
   };
 
@@ -240,15 +264,15 @@ export default function IroningPage() {
                 {o.status === "รอซักรีด" && (
                   <div className="border-t border-slate-100 pt-3 mt-3">
                     <button
-                      onClick={() => handleMarkReady(o.orderId)}
-                      disabled={!allDone || updating === o.orderId}
+                      onClick={() => handleOpenStaffModal(o.orderId)}
+                      disabled={!allDone || saving}
                       className={`w-full py-2.5 rounded-lg text-sm font-medium transition-colors ${
                         allDone
                           ? "bg-green-500 text-white hover:bg-green-600"
                           : "bg-slate-100 text-slate-400 cursor-not-allowed"
                       } disabled:opacity-50`}
                     >
-                      {updating === o.orderId ? "กำลังบันทึก..." : "รีดเสร็จ → พร้อมส่ง"}
+                      {saving ? "กำลังบันทึก..." : "รีดเสร็จ — เลือกพนักงาน"}
                     </button>
                   </div>
                 )}
@@ -258,6 +282,38 @@ export default function IroningPage() {
           <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={totalItems} itemsPerPage={itemsPerPage} />
         </div>
       )}
+
+      {saving && <Spinner text="กำลังบันทึก..." />}
+
+      {/* Modal: เลือกพนักงานรีด */}
+      <Modal isOpen={!!showStaffModal} onClose={() => setShowStaffModal(null)} title="เลือกพนักงานรีด">
+        <div className="space-y-2">
+          <p className="text-sm text-slate-500 mb-3">ออเดอร์: <span className="font-bold text-blue-600">{showStaffModal}</span></p>
+          {staffList.length === 0 ? (
+            <p className="text-center text-slate-400 py-4">ไม่พบพนักงาน</p>
+          ) : (
+            staffList.map((staff) => (
+              <button
+                key={staff.id}
+                onClick={() => handleSelectStaff(staff.name)}
+                disabled={saving}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-colors text-left disabled:opacity-50"
+              >
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm">
+                  {staff.name.charAt(0)}
+                </div>
+                <span className="text-sm font-medium text-slate-700">{staff.name}</span>
+              </button>
+            ))
+          )}
+          <button
+            onClick={() => setShowStaffModal(null)}
+            className="w-full mt-2 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          >
+            ยกเลิก
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

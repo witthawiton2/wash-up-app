@@ -51,6 +51,8 @@ export default function SummaryPage() {
   const [topItems, setTopItems] = useState<TopItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [exportFrom, setExportFrom] = useState("");
+  const [exportTo, setExportTo] = useState("");
 
   const fetchSummary = useCallback(async () => {
     try {
@@ -79,22 +81,50 @@ export default function SummaryPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-slate-800">Summary</h2>
-        <div className="flex gap-2">
+      </div>
+
+      {/* Export Section */}
+      <div className="card mb-6">
+        <h3 className="text-sm font-semibold text-slate-700 mb-3">Export ข้อมูล</h3>
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">จากวันที่</label>
+            <input
+              type="date"
+              value={exportFrom}
+              onChange={(e) => setExportFrom(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">ถึงวันที่</label>
+            <input
+              type="date"
+              value={exportTo}
+              onChange={(e) => setExportTo(e.target.value)}
+              className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
           <a
-            href="/api/export?type=orders"
-            className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-md hover:bg-green-100"
+            href={`/api/export?type=orders${exportFrom ? `&from=${exportFrom}` : ""}${exportTo ? `&to=${exportTo}` : ""}`}
+            className="text-xs font-medium text-green-600 bg-green-50 border border-green-200 px-4 py-2 rounded-lg hover:bg-green-100 transition-colors"
           >
-            Export ออเดอร์ CSV
+            Export ออเดอร์
           </a>
           <a
-            href="/api/export?type=customers"
-            className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-md hover:bg-blue-100"
+            href={`/api/export?type=customers`}
+            className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-200 px-4 py-2 rounded-lg hover:bg-blue-100 transition-colors"
           >
-            Export ลูกค้า CSV
+            Export ลูกค้า
           </a>
         </div>
+        {(exportFrom || exportTo) && (
+          <p className="text-xs text-slate-400 mt-2">
+            {exportFrom && exportTo ? `ช่วง ${exportFrom} ถึง ${exportTo}` : exportFrom ? `ตั้งแต่ ${exportFrom}` : `ถึง ${exportTo}`}
+          </p>
+        )}
       </div>
 
       {/* Summary Cards */}

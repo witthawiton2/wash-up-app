@@ -50,13 +50,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)", boxShadow: "0 8px 32px rgba(59,130,246,0.3)" }}>
-            <span className="text-3xl">🧺</span>
-          </div>
-          <h1 className="text-4xl font-bold tracking-[0.2em] mb-1" style={{ background: "linear-gradient(135deg, #60a5fa, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            WASH UP
-          </h1>
-          <p className="text-blue-300/60 text-xs tracking-widest uppercase">Laundry Management System</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/logo.png" alt="Wash Up" className="h-20 mx-auto mb-2 brightness-0 invert opacity-90" />
         </div>
 
         {/* Login Card */}

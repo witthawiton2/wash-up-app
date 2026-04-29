@@ -31,7 +31,6 @@ export default function RegisterPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
-  const [lineId, setLineId] = useState("");
   const [address, setAddress] = useState("");
   const [email, setEmail] = useState("");
 
@@ -131,7 +130,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, lastName, phone, lineId, address, package: packageType, email, lineUserId }),
+        body: JSON.stringify({ firstName, lastName, phone, address, package: packageType, email, lineUserId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -211,10 +210,8 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ background: "linear-gradient(160deg, #0c1222 0%, #1a2744 40%, #2563eb 100%)" }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-3" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)", boxShadow: "0 8px 32px rgba(59,130,246,0.3)" }}>
-            <span className="text-2xl">🧺</span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-[0.15em] mb-1" style={{ background: "linear-gradient(135deg, #93c5fd, #c4b5fd)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>WASH UP</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/logo.png" alt="Wash Up" className="h-16 mx-auto mb-2 brightness-0 invert opacity-90" />
           <p className="text-blue-300/60 text-xs tracking-widest uppercase">{mode === "renew" ? "Renew Package" : "Register"}</p>
         </div>
 
@@ -299,10 +296,6 @@ export default function RegisterPage() {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">เบอร์โทรศัพท์ <span className="text-red-500">*</span></label>
                 <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" placeholder="0812345678" required />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Line ID <span className="text-red-500">*</span></label>
-                <input type="text" value={lineId} onChange={(e) => setLineId(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm" placeholder="กรอก Line ID" required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">ที่อยู่ <span className="text-red-500">*</span></label>

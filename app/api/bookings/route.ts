@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { formatDate, formatTime } from "@/lib/timezone";
 
 export async function GET() {
   try {
@@ -17,21 +18,10 @@ export async function GET() {
       phone: o.customer?.phone || "",
       items: o.items.map((i) => ({ name: i.itemName, qty: i.quantity })),
       status: o.status,
-      requestedDate: o.requestedDeliveryDate!.toLocaleDateString("th-TH", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
-      requestedTime: o.requestedDeliveryDate!.toLocaleTimeString("th-TH", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      requestedDate: formatDate(o.requestedDeliveryDate!),
+      requestedTime: formatTime(o.requestedDeliveryDate!),
       note: o.note || "",
-      orderDate: o.orderDate.toLocaleDateString("th-TH", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
+      orderDate: formatDate(o.orderDate),
     }));
 
     return NextResponse.json(bookings);

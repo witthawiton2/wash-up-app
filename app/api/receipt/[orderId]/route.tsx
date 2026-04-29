@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { ImageResponse } from "next/og";
 import { prisma } from "@/lib/prisma";
 import { generatePromptPayQR } from "@/lib/promptpay-qr";
+import { formatDateTime, formatDate } from "@/lib/timezone";
+import { LOGO_DATA_URI } from "@/lib/logo-data";
 
 export const runtime = "nodejs";
 
@@ -62,23 +64,12 @@ export async function GET(
             qty: i.quantity,
             price: i.price,
           })),
-          date: dbOrder.orderDate.toLocaleDateString("th-TH", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          }) + " " + dbOrder.orderDate.toLocaleTimeString("th-TH", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+          date: formatDateTime(dbOrder.orderDate),
           hangersOwned: dbOrder.hangersOwned,
           hangersBought: dbOrder.hangersBought,
           discount: dbOrder.discount,
           packageExpiry: dbOrder.customer?.endDate
-            ? dbOrder.customer.endDate.toLocaleDateString("th-TH", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-              })
+            ? formatDate(dbOrder.customer.endDate)
             : "-",
           packageRemaining: dbOrder.customer?.remaining ?? 0,
         };
@@ -132,7 +123,7 @@ export async function GET(
           fontFamily: "NotoSansThai, sans-serif",
         }}
       >
-        {/* Header - WASH UP */}
+        {/* Header - Logo */}
         <div
           style={{
             display: "flex",
@@ -141,19 +132,8 @@ export async function GET(
             marginBottom: 16,
           }}
         >
-          <div
-            style={{
-              fontSize: 28,
-              fontWeight: 700,
-              color: "#2563eb",
-              letterSpacing: 4,
-            }}
-          >
-            WASH UP
-          </div>
-          <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
-            Laundry &amp; Dry cleaning
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={LOGO_DATA_URI} alt="Wash Up" width={280} height={70} style={{ objectFit: "contain" }} />
         </div>
 
         {/* Title */}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { formatDate } from "@/lib/timezone";
 
 export async function GET() {
   try {
@@ -14,11 +15,7 @@ export async function GET() {
       address: c.address || "",
       package: c.package || "Basic",
       endDate: c.endDate
-        ? c.endDate.toLocaleDateString("th-TH", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          })
+        ? formatDate(c.endDate)
         : "",
       remaining: c.remaining,
       lineUserId: c.lineUserId || "",

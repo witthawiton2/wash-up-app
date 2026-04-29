@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { formatDate } from "@/lib/timezone";
 
 export async function GET(request: NextRequest) {
   try {
     const type = request.nextUrl.searchParams.get("type") || "orders";
+    const from = request.nextUrl.searchParams.get("from");
+    const to = request.nextUrl.searchParams.get("to");
 
     if (type === "orders") {
+      const dateFilter: Record<string, unknown> = {};
+      if (from) dateFilter.gte = new Date(`${from}T00:00:00`);
+      if (to) dateFilter.lte = new Date(`${to}T23:59:59`);
+
       const orders = await prisma.order.findMany({
+        where: from || to ? { orderDate: dateFilter } : undefined,
         include: { customer: true, items: true },
         orderBy: { createdAt: "desc" },
       });
@@ -16,7 +24,7 @@ export async function GET(request: NextRequest) {
       const rows = orders.map((o) => {
         const items = o.items.map((i) => `${i.itemName}x${i.quantity}`).join(" | ");
         const totalQty = o.items.reduce((s, i) => s + i.quantity, 0);
-        const date = o.orderDate.toLocaleDateString("th-TH");
+        const date = formatDate(o.orderDate);
         const customer = o.customer?.name || o.walkInName || "";
         const phone = o.customer?.phone || "";
         return `"${o.orderId}","${customer}","${phone}","${items}",${totalQty},${o.totalAmount},${o.discount},"${o.status}","${date}"`;
@@ -38,7 +46,7 @@ export async function GET(request: NextRequest) {
       const bom = "\uFEFF";
       const header = "รหัสลูกค้า,ชื่อ,เบอร์โทร,ที่อยู่,แพ็คเกจ,คงเหลือ,วันหมดอายุ,สถานะ\n";
       const rows = customers.map((c) => {
-        const endDate = c.endDate ? c.endDate.toLocaleDateString("th-TH") : "-";
+        const endDate = c.endDate ? formatDate(c.endDate) : "-";
         return `"${c.customerCode || ""}","${c.name}","${c.phone || ""}","${c.address || ""}","${c.package || ""}",${c.remaining},"${endDate}","${c.status}"`;
       }).join("\n");
 

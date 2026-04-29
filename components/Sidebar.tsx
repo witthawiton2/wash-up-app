@@ -13,6 +13,7 @@ import {
   ClipboardList,
   Package,
   CalendarCheck,
+  Wallet,
   UserCog,
   BarChart3,
   Moon,
@@ -37,6 +38,7 @@ const menuItems: MenuItem[] = [
   { href: "/dashboard/services", label: "รายการสินค้า", icon: ClipboardList, roles: ["admin", "staff"] },
   { href: "/dashboard/packages", label: "แพ็คเกจ", icon: Package, roles: ["admin"] },
   { href: "/dashboard/bookings", label: "การจอง", icon: CalendarCheck, roles: ["admin", "staff"] },
+  { href: "/dashboard/payments", label: "การชำระ", icon: Wallet, roles: ["admin", "staff"] },
   { href: "/dashboard/users", label: "User", icon: UserCog, roles: ["admin"] },
   { href: "/dashboard/summary", label: "Summary", icon: BarChart3, roles: ["admin"] },
 ];
@@ -103,13 +105,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         style={{ backgroundColor: "var(--sidebar-bg)" }}
       >
         {/* Logo */}
-        <div className="flex items-center justify-center h-20 border-b border-white/5">
-          <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-[0.2em]" style={{ background: "linear-gradient(135deg, #60a5fa, #818cf8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              WASH UP
-            </h1>
-            <p className="text-[10px] text-slate-500 mt-0.5 tracking-widest uppercase">Laundry Management</p>
-          </div>
+        <div className="flex items-center justify-center h-20 border-b border-white/5 px-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/images/logo.png" alt="Wash Up" className="h-12 object-contain brightness-0 invert opacity-90" />
         </div>
 
         {/* User Info */}

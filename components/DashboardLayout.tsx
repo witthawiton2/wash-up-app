@@ -46,7 +46,8 @@ export default function DashboardLayout({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <h1 className="ml-3 text-lg font-bold tracking-wider" style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>WASH UP</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/images/logo.png" alt="Wash Up" className="ml-3 h-8 object-contain" />
       </div>
 
       {/* Main content */}

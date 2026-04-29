@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { formatDate, formatDateShort, todayStart } from "@/lib/timezone";
 
 export async function GET() {
   try {
@@ -15,8 +16,7 @@ export async function GET() {
     }
 
     // Today's stats
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = todayStart();
     const todayOrders = orders.filter((o) => o.orderDate >= today);
     const todayRevenue = todayOrders.reduce((s, o) => s + o.totalAmount, 0);
 
@@ -37,11 +37,7 @@ export async function GET() {
     for (const order of orders) {
       const d = order.orderDate;
       const dateSort = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const dateKey = d.toLocaleDateString("th-TH", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
+      const dateKey = formatDate(d);
 
       if (!dailyMap.has(dateSort)) {
         dailyMap.set(dateSort, {
@@ -117,11 +113,7 @@ export async function GET() {
       customer: o.customer?.name || o.walkInName || "ลูกค้าทั่วไป",
       status: o.status,
       totalAmount: o.totalAmount,
-      date: o.orderDate.toLocaleDateString("th-TH", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
+      date: formatDate(o.orderDate),
     }));
 
     // Totals

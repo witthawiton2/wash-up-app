@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage } from "@/lib/line-api";
+import { formatDateTime } from "@/lib/timezone";
 
 export async function GET() {
   try {
@@ -34,14 +35,7 @@ export async function GET() {
       discount: o.discount,
       checkPhotos: o.checkPhotos || null,
       note: o.note || "",
-      date: o.orderDate.toLocaleDateString("th-TH", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }) + " " + o.orderDate.toLocaleTimeString("th-TH", {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
+      date: formatDateTime(o.orderDate),
     }));
 
     return NextResponse.json(formatted);

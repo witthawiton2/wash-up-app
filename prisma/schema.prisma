@@ -54,6 +54,9 @@ model Order {
   checkPhotos   String?
   note                  String?
   requestedDeliveryDate DateTime?
+  paymentSlipUrl        String?
+  paymentStatus         String   @default("unpaid") // unpaid, pending, paid
+  paidAt                DateTime?
   orderDate             DateTime @default(now())
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

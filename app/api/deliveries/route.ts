@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
+import { formatDate } from "@/lib/timezone";
 import { getBaseUrl } from "@/lib/base-url";
 
 export async function GET() {
@@ -25,11 +26,7 @@ export async function GET() {
       phone: o.customer?.phone || "",
       address: o.delivery?.address || o.customer?.address || "",
       status: o.status,
-      date: o.orderDate.toLocaleDateString("th-TH", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
+      date: formatDate(o.orderDate),
       items: o.items.map((i) => ({
         name: i.itemName,
         qty: i.quantity,

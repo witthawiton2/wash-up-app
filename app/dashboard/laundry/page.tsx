@@ -439,8 +439,7 @@ export default function LaundryPage() {
 </style>
 </head><body>
 <div class="center">
-  <h1>WASH UP</h1>
-  <div style="font-size:10px;color:#666">Laundry & Dry cleaning</div>
+  <img src="/images/logo.png" style="height:40px;margin:0 auto" alt="Wash Up" />
 </div>
 <div class="center big" style="margin:8px 0">${o.orderId}</div>
 <div class="line"></div>

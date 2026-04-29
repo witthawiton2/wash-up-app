@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyAdminRenewRequest } from "@/lib/notify-admin";
+import { formatDate } from "@/lib/timezone";
 
 // GET: ดึงข้อมูลลูกค้าจาก lineUserId
 export async function GET(request: NextRequest) {
@@ -24,9 +25,7 @@ export async function GET(request: NextRequest) {
       phone: customer.phone,
       package: customer.package,
       remaining: customer.remaining,
-      endDate: customer.endDate
-        ? customer.endDate.toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "numeric" })
-        : "-",
+      endDate: customer.endDate ? formatDate(customer.endDate) : "-",
       renewPending: customer.renewPending,
     });
   } catch (error) {

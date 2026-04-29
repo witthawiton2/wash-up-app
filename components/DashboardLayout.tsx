@@ -12,8 +12,25 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const { user, isLoading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await fetch("/api/settings");
+        if (res.ok) {
+          const data = await res.json();
+          setLogoUrl(data.logoUrl || null);
+        }
+      } catch { /* ignore */ }
+    };
+    load();
+    const handler = () => load();
+    window.addEventListener("settings-updated", handler);
+    return () => window.removeEventListener("settings-updated", handler);
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -47,7 +64,7 @@ export default function DashboardLayout({
           </svg>
         </button>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/logo.png" alt="Wash Up" className="ml-3 h-8 object-contain" />
+        <img src={logoUrl || "/images/logo.png"} alt="Wash Up" className="ml-3 h-8 object-contain" />
       </div>
 
       {/* Main content */}

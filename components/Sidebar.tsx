@@ -16,6 +16,7 @@ import {
   Wallet,
   UserCog,
   BarChart3,
+  Settings as SettingsIcon,
   Moon,
   Globe,
   LogOut,
@@ -41,6 +42,7 @@ const menuItems: MenuItem[] = [
   { href: "/dashboard/payments", label: "การชำระ", icon: Wallet, roles: ["admin", "staff"] },
   { href: "/dashboard/users", label: "User", icon: UserCog, roles: ["admin"] },
   { href: "/dashboard/summary", label: "Summary", icon: BarChart3, roles: ["admin"] },
+  { href: "/dashboard/settings", label: "ตั้งค่า", icon: SettingsIcon, roles: ["admin"] },
 ];
 
 const roleBadge: Record<Role, { label: string; bg: string }> = {
@@ -59,6 +61,26 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
 
   const [badges, setBadges] = useState<Record<string, number>>({});
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState<string>("Wash Up");
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings");
+      if (res.ok) {
+        const data = await res.json();
+        setLogoUrl(data.logoUrl || null);
+        if (data.companyName) setCompanyName(data.companyName);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchSettings();
+    const handler = () => fetchSettings();
+    window.addEventListener("settings-updated", handler);
+    return () => window.removeEventListener("settings-updated", handler);
+  }, [fetchSettings]);
 
   const fetchBadges = useCallback(async () => {
     try {
@@ -107,7 +129,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Logo */}
         <div className="flex items-center justify-center h-20 border-b border-white/5 px-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/logo.png" alt="Wash Up" className="h-12 object-contain brightness-0 invert opacity-90" />
+          <img
+            src={logoUrl || "/images/logo.png"}
+            alt={companyName}
+            className="h-12 object-contain"
+          />
         </div>
 
         {/* User Info */}

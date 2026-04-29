@@ -59,7 +59,7 @@ export default function IroningPage() {
       const res = await fetch("/api/users");
       if (res.ok) {
         const data = await res.json();
-        setStaffList(data.filter((u: { role: string; active: boolean }) => u.role === "staff" && u.active));
+        setStaffList(data.filter((u: { role: string; active: boolean }) => (u.role === "staff" || u.role === "ironer") && u.active));
       }
     } catch { /* ignore */ }
   }, []);

@@ -15,18 +15,21 @@ const roles = [
   { value: "admin", label: "ผู้จัดการ" },
   { value: "staff", label: "พนง.ทั่วไป" },
   { value: "driver", label: "พนง.รับส่ง" },
+  { value: "ironer", label: "พนง.รีดผ้า" },
 ];
 
 const roleLabelMap: Record<string, string> = {
   admin: "ผู้จัดการ",
   staff: "พนง.ทั่วไป",
   driver: "พนง.รับส่ง",
+  ironer: "พนง.รีดผ้า",
 };
 
 const roleBadgeMap: Record<string, string> = {
   admin: "badge-blue",
   staff: "badge-green",
   driver: "badge-yellow",
+  ironer: "badge-orange",
 };
 
 const emptyUser = {

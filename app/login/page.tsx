@@ -7,6 +7,7 @@ const roleLabels: Record<Role, { label: string; color: string }> = {
   admin: { label: "ผู้จัดการ", color: "#8b5cf6" },
   staff: { label: "พนง.ทั่วไป", color: "#3b82f6" },
   driver: { label: "พนง.รับส่ง", color: "#10b981" },
+  ironer: { label: "พนง.รีดผ้า", color: "#f97316" },
 };
 
 export default function LoginPage() {

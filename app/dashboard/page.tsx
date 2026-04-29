@@ -46,7 +46,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user && user.role !== "admin") {
-      router.replace("/dashboard/laundry");
+      const dest =
+        user.role === "driver"
+          ? "/dashboard/delivery"
+          : user.role === "ironer"
+          ? "/dashboard/ironing"
+          : "/dashboard/laundry";
+      router.replace(dest);
     }
   }, [user, router]);
 

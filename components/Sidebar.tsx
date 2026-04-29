@@ -35,7 +35,7 @@ const menuItems: MenuItem[] = [
   { href: "/dashboard/customer", label: "Customer", icon: Users, roles: ["admin", "staff"] },
   { href: "/dashboard/delivery", label: "Delivery", icon: Truck, roles: ["admin", "driver"] },
   { href: "/dashboard/laundry", label: "Laundry", icon: Shirt, roles: ["admin", "staff"] },
-  { href: "/dashboard/ironing", label: "Ironing", icon: Flame, roles: ["admin", "staff"] },
+  { href: "/dashboard/ironing", label: "Ironing", icon: Flame, roles: ["admin", "staff", "ironer"] },
   { href: "/dashboard/services", label: "รายการสินค้า", icon: ClipboardList, roles: ["admin", "staff"] },
   { href: "/dashboard/packages", label: "แพ็คเกจ", icon: Package, roles: ["admin"] },
   { href: "/dashboard/bookings", label: "การจอง", icon: CalendarCheck, roles: ["admin", "staff"] },
@@ -49,6 +49,7 @@ const roleBadge: Record<Role, { label: string; bg: string }> = {
   admin: { label: "ผู้จัดการ", bg: "#8b5cf6" },
   staff: { label: "พนง.ทั่วไป", bg: "#3b82f6" },
   driver: { label: "พนง.รับส่ง", bg: "#10b981" },
+  ironer: { label: "พนง.รีดผ้า", bg: "#f97316" },
 };
 
 interface SidebarProps {

@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-export type Role = "admin" | "staff" | "driver";
+export type Role = "admin" | "staff" | "driver" | "ironer";
 
 export interface AuthUser {
   username: string;

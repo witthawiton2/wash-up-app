@@ -141,7 +141,7 @@ export async function GET(
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoSrc} alt="Wash Up" width={460} height={240} style={{ objectFit: "contain" }} />
+          <img src={logoSrc} alt="Wash Up" width={360} height={140} style={{ objectFit: "contain" }} />
         </div>
 
         {/* Body content (padded) */}
@@ -351,7 +351,7 @@ export async function GET(
     ),
     {
       width: 500,
-      height: 700 + order.items.length * 28 + (disc > 0 ? 40 : 0) + (qrDataUri ? 300 : 0),
+      height: 600 + order.items.length * 28 + (disc > 0 ? 40 : 0) + (qrDataUri ? 300 : 0),
     }
   );
   } catch (error) {

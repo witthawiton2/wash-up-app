@@ -187,9 +187,11 @@ export async function GET(
             marginBottom: 14,
           }}
         >
-          <div style={{ ...rowStyle, justifyContent: "space-between" }}>
+          <div style={rowStyle}>
             <span>รหัสใบสั่งซื้อ: {order.id}</span>
-            <span>วันที่: {order.date}</span>
+          </div>
+          <div style={rowStyle}>
+            <span>วันและเวลาที่ทำบิล: {order.date}</span>
           </div>
           <div style={rowStyle}>
             <span>ชื่อลูกค้า: {order.customer}</span>

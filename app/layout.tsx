@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import { SettingsProvider } from "@/lib/settings-context";
 import PWARegister from "@/components/PWARegister";
 
 export const metadata: Metadata = {
@@ -46,7 +47,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png" />
       </head>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <SettingsProvider>{children}</SettingsProvider>
+        </AuthProvider>
         <PWARegister />
       </body>
     </html>

@@ -3,14 +3,38 @@ import { prisma } from "@/lib/prisma";
 import { pushTextMessage } from "@/lib/line-api";
 import { formatDateTime } from "@/lib/timezone";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const statusParam = searchParams.get("status");
+    const daysParam = searchParams.get("days");
+    const limitParam = searchParams.get("limit");
+
+    const where: Record<string, unknown> = {};
+    if (statusParam) {
+      where.status = statusParam.includes(",")
+        ? { in: statusParam.split(",") }
+        : statusParam;
+    }
+    if (daysParam) {
+      const days = parseInt(daysParam, 10);
+      if (!isNaN(days) && days > 0) {
+        const from = new Date();
+        from.setDate(from.getDate() - days);
+        where.orderDate = { gte: from };
+      }
+    }
+
+    const take = limitParam ? Math.min(parseInt(limitParam, 10) || 500, 1000) : undefined;
+
     const orders = await prisma.order.findMany({
+      where,
       include: {
         customer: true,
         items: true,
       },
       orderBy: { createdAt: "desc" },
+      take,
     });
 
     const formatted = orders.map((o) => ({

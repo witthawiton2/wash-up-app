@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
 import ErrorBoundary from "./ErrorBoundary";
 import { useAuth } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 
 export default function DashboardLayout({
   children,
@@ -12,25 +13,10 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const { settings } = useSettings();
+  const logoUrl = settings.logoUrl;
   const { user, isLoading } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await fetch("/api/settings");
-        if (res.ok) {
-          const data = await res.json();
-          setLogoUrl(data.logoUrl || null);
-        }
-      } catch { /* ignore */ }
-    };
-    load();
-    const handler = () => load();
-    window.addEventListener("settings-updated", handler);
-    return () => window.removeEventListener("settings-updated", handler);
-  }, []);
 
   useEffect(() => {
     if (!isLoading && !user) {

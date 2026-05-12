@@ -35,7 +35,7 @@ export default function IroningPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch("/api/orders");
+      const res = await fetch("/api/orders?status=รอซักรีด&days=30");
       if (res.ok) {
         const data = await res.json();
         setOrders(data);

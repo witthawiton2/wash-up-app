@@ -72,8 +72,7 @@ export default function CustomerPage() {
   }, []);
 
   useEffect(() => {
-    fetchCustomers();
-    fetchPackages();
+    Promise.all([fetchCustomers(), fetchPackages()]);
   }, [fetchCustomers, fetchPackages]);
 
   usePolling(fetchCustomers, 30000);

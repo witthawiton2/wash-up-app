@@ -1,26 +1,72 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { formatDate, formatDateShort, todayStart } from "@/lib/timezone";
+import { formatDate, todayStart } from "@/lib/timezone";
+
+const DETAIL_DAYS = 90;
 
 export async function GET() {
   try {
-    const orders = await prisma.order.findMany({
-      include: { items: true, customer: true },
-      orderBy: { orderDate: "desc" },
-    });
+    const today = todayStart();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const detailFrom = new Date(today);
+    detailFrom.setDate(detailFrom.getDate() - DETAIL_DAYS);
+
+    const [
+      totalAgg,
+      itemAgg,
+      todayAgg,
+      monthAgg,
+      statusGroups,
+      detailOrders,
+      recentOrdersRaw,
+      customerCount,
+      todayBookings,
+      pendingRenewals,
+    ] = await Promise.all([
+      prisma.order.aggregate({
+        _count: { _all: true },
+        _sum: { totalAmount: true },
+      }),
+      prisma.orderItem.aggregate({ _sum: { quantity: true } }),
+      prisma.order.aggregate({
+        where: { orderDate: { gte: today, lt: tomorrow } },
+        _count: { _all: true },
+        _sum: { totalAmount: true },
+      }),
+      prisma.order.aggregate({
+        where: { orderDate: { gte: monthStart } },
+        _sum: { totalAmount: true },
+      }),
+      prisma.order.groupBy({
+        by: ["status"],
+        _count: { _all: true },
+      }),
+      prisma.order.findMany({
+        where: { orderDate: { gte: detailFrom } },
+        include: { items: true, customer: true },
+        orderBy: { orderDate: "desc" },
+      }),
+      prisma.order.findMany({
+        take: 5,
+        orderBy: { orderDate: "desc" },
+        include: { customer: true },
+      }),
+      prisma.customer.count(),
+      prisma.order.count({
+        where: { requestedDeliveryDate: { gte: today, lt: tomorrow } },
+      }),
+      prisma.customer.count({ where: { renewPending: true } }),
+    ]);
 
     // Status counts
     const statusCounts: Record<string, number> = {};
-    for (const o of orders) {
-      statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+    for (const s of statusGroups) {
+      statusCounts[s.status] = s._count._all;
     }
 
-    // Today's stats
-    const today = todayStart();
-    const todayOrders = orders.filter((o) => o.orderDate >= today);
-    const todayRevenue = todayOrders.reduce((s, o) => s + o.totalAmount, 0);
-
-    // Group by date (last 30 days)
+    // Daily aggregation (over the detail window)
     const dailyMap = new Map<
       string,
       {
@@ -34,7 +80,7 @@ export async function GET() {
       }
     >();
 
-    for (const order of orders) {
+    for (const order of detailOrders) {
       const d = order.orderDate;
       const dateSort = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       const dateKey = formatDate(d);
@@ -58,19 +104,16 @@ export async function GET() {
 
       for (const item of order.items) {
         day.totalItems += item.quantity;
-        const existing = day.itemBreakdown.get(item.itemName) || {
-          qty: 0,
-          revenue: 0,
-        };
+        const existing = day.itemBreakdown.get(item.itemName) || { qty: 0, revenue: 0 };
         existing.qty += item.quantity;
         existing.revenue += item.total;
         day.itemBreakdown.set(item.itemName, existing);
       }
     }
 
-    // Sort by date desc
-    const sortedDays = Array.from(dailyMap.entries())
-      .sort(([a], [b]) => b.localeCompare(a));
+    const sortedDays = Array.from(dailyMap.entries()).sort(([a], [b]) =>
+      b.localeCompare(a)
+    );
 
     const summary = sortedDays.map(([, day]) => ({
       date: day.date,
@@ -85,17 +128,16 @@ export async function GET() {
       })),
     }));
 
-    // Chart data: last 7 days (sorted chronologically)
     const last7 = sortedDays.slice(0, 7).reverse().map(([, day]) => ({
-      date: day.date.slice(0, 5), // DD/MM
+      date: day.date.slice(0, 5),
       orders: day.orders,
       revenue: day.revenue,
       items: day.totalItems,
     }));
 
-    // Top items overall
+    // Top items (within detail window)
     const itemTotals = new Map<string, { qty: number; revenue: number }>();
-    for (const order of orders) {
+    for (const order of detailOrders) {
       for (const item of order.items) {
         const existing = itemTotals.get(item.itemName) || { qty: 0, revenue: 0 };
         existing.qty += item.quantity;
@@ -107,52 +149,9 @@ export async function GET() {
       .map(([name, data]) => ({ name, ...data }))
       .sort((a, b) => b.qty - a.qty);
 
-    // Recent orders
-    const recentOrders = orders.slice(0, 5).map((o) => ({
-      orderId: o.orderId,
-      customer: o.customer?.name || o.walkInName || "ลูกค้าทั่วไป",
-      status: o.status,
-      totalAmount: o.totalAmount,
-      date: formatDate(o.orderDate),
-    }));
-
-    // Totals
-    const totals = {
-      totalOrders: orders.length,
-      totalRevenue: orders.reduce((s, o) => s + o.totalAmount, 0),
-      totalItems: orders.reduce(
-        (s, o) => s + o.items.reduce((s2, i) => s2 + i.quantity, 0),
-        0
-      ),
-      todayOrders: todayOrders.length,
-      todayRevenue,
-    };
-
-    const customerCount = await prisma.customer.count();
-
-    // Today's bookings
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const todayBookings = await prisma.order.count({
-      where: {
-        requestedDeliveryDate: { gte: today, lt: tomorrow },
-      },
-    });
-
-    // Pending renewals
-    const pendingRenewals = await prisma.customer.count({
-      where: { renewPending: true },
-    });
-
-    // Monthly revenue (current month)
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthlyRevenue = orders
-      .filter((o) => o.orderDate >= monthStart)
-      .reduce((s, o) => s + o.totalAmount, 0);
-
-    // Top customers
+    // Top customers (within detail window)
     const customerTotals = new Map<string, { name: string; orders: number; revenue: number }>();
-    for (const o of orders) {
+    for (const o of detailOrders) {
       const name = o.customer?.name || o.walkInName || "ลูกค้าทั่วไป";
       const existing = customerTotals.get(name) || { name, orders: 0, revenue: 0 };
       existing.orders += 1;
@@ -163,9 +162,28 @@ export async function GET() {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
+    const recentOrders = recentOrdersRaw.map((o) => ({
+      orderId: o.orderId,
+      customer: o.customer?.name || o.walkInName || "ลูกค้าทั่วไป",
+      status: o.status,
+      totalAmount: o.totalAmount,
+      date: formatDate(o.orderDate),
+    }));
+
+    const totals = {
+      totalOrders: totalAgg._count._all,
+      totalRevenue: totalAgg._sum.totalAmount ?? 0,
+      totalItems: itemAgg._sum.quantity ?? 0,
+      todayOrders: todayAgg._count._all,
+      todayRevenue: todayAgg._sum.totalAmount ?? 0,
+      todayBookings,
+      pendingRenewals,
+      monthlyRevenue: monthAgg._sum.totalAmount ?? 0,
+    };
+
     return NextResponse.json({
       summary,
-      totals: { ...totals, todayBookings, pendingRenewals, monthlyRevenue },
+      totals,
       statusCounts,
       last7,
       topItems,

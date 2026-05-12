@@ -107,7 +107,7 @@ export default function LaundryPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch("/api/orders");
+      const res = await fetch("/api/orders?days=90&limit=500");
       if (res.ok) {
         const data = await res.json();
         setOrders(data);
@@ -144,9 +144,7 @@ export default function LaundryPage() {
   }, []);
 
   useEffect(() => {
-    fetchOrders();
-    fetchCustomers();
-    fetchServiceItems();
+    Promise.all([fetchOrders(), fetchCustomers(), fetchServiceItems()]);
   }, [fetchOrders, fetchCustomers, fetchServiceItems]);
 
   usePolling(fetchOrders, 30000);

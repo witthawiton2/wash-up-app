@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth, Role } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 import {
   LayoutDashboard,
   Users,
@@ -62,26 +63,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
 
   const [badges, setBadges] = useState<Record<string, number>>({});
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [companyName, setCompanyName] = useState<string>("Wash Up");
-
-  const fetchSettings = useCallback(async () => {
-    try {
-      const res = await fetch("/api/settings");
-      if (res.ok) {
-        const data = await res.json();
-        setLogoUrl(data.logoUrl || null);
-        if (data.companyName) setCompanyName(data.companyName);
-      }
-    } catch { /* ignore */ }
-  }, []);
-
-  useEffect(() => {
-    fetchSettings();
-    const handler = () => fetchSettings();
-    window.addEventListener("settings-updated", handler);
-    return () => window.removeEventListener("settings-updated", handler);
-  }, [fetchSettings]);
+  const { settings } = useSettings();
+  const logoUrl = settings.logoUrl;
+  const companyName = settings.companyName || "Wash Up";
 
   const fetchBadges = useCallback(async () => {
     try {

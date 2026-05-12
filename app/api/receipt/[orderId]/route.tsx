@@ -33,6 +33,14 @@ export async function GET(
 ) {
   const { orderId } = await params;
   try {
+  let logoSrc: string = LOGO_DATA_URI;
+  try {
+    const settings = await prisma.settings.findUnique({ where: { id: 1 } });
+    if (settings?.logoUrl) logoSrc = settings.logoUrl;
+  } catch {
+    // table may not exist yet — fall back to hardcoded
+  }
+
   const orderParam = request.nextUrl.searchParams.get("data");
   const isEdited = request.nextUrl.searchParams.get("edited") === "1";
   let order: OrderData | undefined;
@@ -119,11 +127,11 @@ export async function GET(
           width: "100%",
           height: "100%",
           backgroundColor: "#ffffff",
-          padding: "30px 36px",
+          padding: "30px 0",
           fontFamily: "NotoSansThai, sans-serif",
         }}
       >
-        {/* Header - Logo */}
+        {/* Header - Logo (full width) */}
         <div
           style={{
             display: "flex",
@@ -133,9 +141,11 @@ export async function GET(
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={LOGO_DATA_URI} alt="Wash Up" width={280} height={70} style={{ objectFit: "contain" }} />
+          <img src={logoSrc} alt="Wash Up" width={460} height={240} style={{ objectFit: "contain" }} />
         </div>
 
+        {/* Body content (padded) */}
+        <div style={{ display: "flex", flexDirection: "column", padding: "0 36px" }}>
         {/* Title */}
         <div
           style={{
@@ -334,11 +344,12 @@ export async function GET(
             โอนแล้ว รบกวนส่งสลิปให้ด้วยนะคร้าบ
           </div>
         </div>
+        </div>
       </div>
     ),
     {
       width: 500,
-      height: 530 + order.items.length * 28 + (disc > 0 ? 40 : 0) + (qrDataUri ? 300 : 0),
+      height: 700 + order.items.length * 28 + (disc > 0 ? 40 : 0) + (qrDataUri ? 300 : 0),
     }
   );
   } catch (error) {

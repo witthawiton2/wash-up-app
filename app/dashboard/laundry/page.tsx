@@ -5,6 +5,7 @@ import Modal, { ConfirmDelete } from "@/components/Modal";
 import Spinner from "@/components/Spinner";
 import Pagination, { usePagination } from "@/components/Pagination";
 import { usePolling } from "@/lib/use-polling";
+import { useSettings } from "@/lib/settings-context";
 
 interface LaundryItem {
   name: string;
@@ -69,6 +70,7 @@ const calcQty = (items: LaundryItem[]) =>
   items.reduce((s, i) => s + i.qty, 0);
 
 export default function LaundryPage() {
+  const { settings } = useSettings();
   const [orders, setOrders] = useState<LaundryOrder[]>([]);
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [serviceItems, setServiceItems] = useState<ServiceItemOption[]>([]);
@@ -437,8 +439,11 @@ export default function LaundryPage() {
 </style>
 </head><body>
 <div class="center">
-  <img src="/images/logo.png" style="height:40px;margin:0 auto" alt="Wash Up" />
+  <img src="${settings.logoUrl || "/images/logo.png"}" style="height:60px;margin:0 auto" alt="${settings.companyName || "Wash Up"}" />
 </div>
+${settings.companyName ? `<div class="center bold" style="font-size:14px;margin-top:4px">${settings.companyName}</div>` : ""}
+${settings.companyPhone ? `<div class="center" style="font-size:11px">โทร: ${settings.companyPhone}</div>` : ""}
+${settings.companyAddress ? `<div class="center" style="font-size:10px;margin-top:2px">${settings.companyAddress}</div>` : ""}
 <div class="center big" style="margin:8px 0">${o.orderId}</div>
 <div class="line"></div>
 <div style="margin:4px 0">
@@ -475,7 +480,8 @@ ${o.discount > 0 ? `
   <span>ทั้งหมด</span><span>${totalPrice.toLocaleString()} ฿</span>
 </div>
 <div class="line"></div>
-<div class="center" style="margin-top:8px;font-size:10px">ขอบคุณที่ใช้บริการ WASH UP</div>
+${settings.receiptHeader ? `<div class="center" style="margin-top:6px;font-size:10px">${settings.receiptHeader}</div>` : ""}
+<div class="center" style="margin-top:8px;font-size:10px">${settings.receiptFooter || `ขอบคุณที่ใช้บริการ ${settings.companyName || "WASH UP"}`}</div>
 </body></html>`;
 
     // Use hidden iframe to auto-print without popup

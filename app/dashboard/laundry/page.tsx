@@ -6,6 +6,7 @@ import Spinner from "@/components/Spinner";
 import Pagination, { usePagination } from "@/components/Pagination";
 import { usePolling } from "@/lib/use-polling";
 import { useSettings } from "@/lib/settings-context";
+import { formatDateTime } from "@/lib/timezone";
 
 interface LaundryItem {
   name: string;
@@ -349,7 +350,9 @@ export default function LaundryPage() {
             id: 0,
             orderId: editing.orderId,
             customerId: editing.customerId,
-            customer: cust?.name || walkIn || "",
+            customer: cust
+              ? `${cust.customerCode ? cust.customerCode + " " : ""}${cust.name}`
+              : walkIn || "",
             phone: cust?.phone || "",
             address: cust?.address || "",
             lineUserId: cust?.lineUserId || "",
@@ -361,11 +364,7 @@ export default function LaundryPage() {
             discount: editing.discount,
             checkPhotos: editing.checkPhotos.length > 0 ? JSON.stringify(editing.checkPhotos) : null,
             note: editing.note,
-            date: new Date().toLocaleDateString("th-TH", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-            }),
+            date: formatDateTime(new Date()),
           });
         }
       }
@@ -452,7 +451,7 @@ ${settings.companyAddress ? `<div class="center" style="font-size:10px;margin-to
   <div>${o.customer}</div>
   <div>โทร: ${o.phone || "-"}</div>
   <div>ที่อยู่: ${o.address || "-"}</div>
-  <div>วันที่: ${o.date}</div>
+  <div>วันและเวลา: ${o.date}</div>
 </div>
 <div class="line"></div>
 <table>

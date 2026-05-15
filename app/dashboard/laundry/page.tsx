@@ -292,8 +292,9 @@ export default function LaundryPage() {
           }),
         });
         if (res.ok) {
-          await Promise.all([fetchOrders(), fetchCustomers()]);
           setModalOpen(false);
+          // Refresh data in background — don't block modal close
+          Promise.all([fetchOrders(), fetchCustomers()]).catch(() => {});
           // Auto send LINE after edit
           const editedOrder = orders.find((o) => o.orderId === editingOrderId);
           if (editedOrder?.lineUserId) {
@@ -326,8 +327,9 @@ export default function LaundryPage() {
           }),
         });
         if (res.ok) {
-          await Promise.all([fetchOrders(), fetchCustomers()]);
           setModalOpen(false);
+          // Refresh data in background — don't block modal close
+          Promise.all([fetchOrders(), fetchCustomers()]).catch(() => {});
 
           // Auto send LINE
           const cust = editing.customerId ? customers.find((c) => c.id === editing.customerId) : null;

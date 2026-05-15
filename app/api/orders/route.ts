@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { pushTextMessage } from "@/lib/line-api";
+import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
 import { formatDateTime } from "@/lib/timezone";
 
 export async function GET(request: NextRequest) {
@@ -207,6 +207,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Forgot-items: send photos + text to customer's LINE chat
+    if (checkPhotos && order.customer?.lineUserId) {
+      try {
+        const urls: string[] = JSON.parse(checkPhotos);
+        if (Array.isArray(urls) && urls.length > 0) {
+          const message = `📸 พบสิ่งของในเสื้อผ้าของคุณ\n\nออเดอร์: ${orderId}\nทางร้านพบสิ่งของในกระเป๋าเสื้อผ้า รบกวนตรวจสอบและรับคืนได้ที่ร้านครับ`;
+          pushTextWithImages(order.customer.lineUserId, message, urls).catch((err) =>
+            console.error("Failed to send LINE forgot-items notification:", err)
+          );
+        }
+      } catch {
+        // checkPhotos is not valid JSON — ignore
+      }
+    }
+
     return NextResponse.json({ ...order, packageDeducted: totalDeduction });
   } catch (error) {
     console.error("Failed to create order:", error);
@@ -336,6 +351,33 @@ export async function PUT(request: NextRequest) {
         pushTextMessage(orderWithCustomer.customer.lineUserId, message).catch(
           (err) => console.error("Failed to send LINE ready notification:", err)
         );
+      }
+    }
+
+    // Forgot-items: push to LINE only when NEW photos were added (compared to existing)
+    if (checkPhotos !== undefined) {
+      try {
+        const newUrls: string[] = checkPhotos ? JSON.parse(checkPhotos) : [];
+        if (Array.isArray(newUrls) && newUrls.length > 0) {
+          const existingOrder = await prisma.order.findUnique({
+            where: { orderId },
+            include: { customer: true },
+          });
+          let oldUrls: string[] = [];
+          try {
+            oldUrls = existingOrder?.checkPhotos ? JSON.parse(existingOrder.checkPhotos) : [];
+          } catch { /* old field malformed */ }
+          const oldSet = new Set(oldUrls);
+          const added = newUrls.filter((u) => !oldSet.has(u));
+          if (added.length > 0 && existingOrder?.customer?.lineUserId) {
+            const message = `📸 พบสิ่งของในเสื้อผ้าของคุณ\n\nออเดอร์: ${orderId}\nทางร้านพบสิ่งของในกระเป๋าเสื้อผ้า รบกวนตรวจสอบและรับคืนได้ที่ร้านครับ`;
+            pushTextWithImages(existingOrder.customer.lineUserId, message, added).catch(
+              (err) => console.error("Failed to send LINE forgot-items notification:", err)
+            );
+          }
+        }
+      } catch {
+        // checkPhotos is not valid JSON — ignore
       }
     }
 

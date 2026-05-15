@@ -208,6 +208,10 @@ export default function MyPage() {
         setSlipPreview("");
         setQrUrl("");
         loadData(lineUserId);
+        setTimeout(() => {
+          setActiveTab("orders");
+          setRenewSuccess(false);
+        }, 1500);
       }
     } catch {
       alert("เกิดข้อผิดพลาด");

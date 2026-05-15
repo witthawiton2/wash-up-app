@@ -8,6 +8,7 @@ interface Booking {
   orderId: string;
   customer: string;
   phone: string;
+  address: string;
   items: { name: string; qty: number }[];
   status: string;
   requestedDate: string;
@@ -99,6 +100,10 @@ export default function BookingsPage() {
                 <div>
                   <span className="text-slate-400">วันที่สั่ง: </span>
                   <span className="text-slate-700">{b.orderDate}</span>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-slate-400">ที่อยู่: </span>
+                  <span className="text-slate-700">{b.address || "-"}</span>
                 </div>
               </div>
 

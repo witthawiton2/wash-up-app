@@ -322,12 +322,38 @@ export async function PUT(request: NextRequest) {
 
       // Adjust customer remaining by the difference
       if (diff !== 0 && order.customerId) {
-        await prisma.customer.update({
+        const updatedCustomer = await prisma.customer.update({
           where: { id: order.customerId },
           data: {
             remaining: { decrement: diff },
           },
         });
+
+        // If remaining just dropped to <=0 and renewal isn't already pending,
+        // add the package renewal fee to this order's total (same behaviour as POST)
+        if (updatedCustomer.remaining <= 0 && !updatedCustomer.renewPending) {
+          const pkgData = await prisma.package.findFirst({
+            where: { name: updatedCustomer.package || "", active: true },
+          });
+          const pkgPrice = pkgData?.price || 0;
+
+          if (pkgPrice > 0) {
+            const existingNote = (updateData.note as string | undefined) ?? order.note ?? "";
+            const renewNote = `ค่าต่อแพ็คเกจ ${updatedCustomer.package} ${pkgPrice}฿`;
+            await prisma.order.update({
+              where: { orderId },
+              data: {
+                totalAmount: { increment: pkgPrice },
+                note: existingNote ? `${existingNote} | ${renewNote}` : renewNote,
+              },
+            });
+          }
+
+          await prisma.customer.update({
+            where: { id: order.customerId },
+            data: { renewPending: true },
+          });
+        }
       }
     } else {
       await prisma.order.update({

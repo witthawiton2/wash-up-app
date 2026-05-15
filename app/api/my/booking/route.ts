@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       await prisma.order.update({
         where: { id: targetOrder.id },
         data: {
-          requestedDeliveryDate: new Date(`${date}T${time}:00`),
+          requestedDeliveryDate: new Date(`${date}T${time}:00+07:00`),
           note: targetOrder.note ? `${targetOrder.note} | ${bookingInfo}` : bookingInfo,
         },
       });

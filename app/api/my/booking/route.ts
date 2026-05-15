@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage } from "@/lib/line-api";
-import { notifyAdminNewBooking } from "@/lib/notify-admin";
+import { notifyAdminNewBooking, notifyAdminLine } from "@/lib/notify-admin";
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,5 +65,56 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Failed to create booking:", error);
     return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const lineUserId = searchParams.get("lineUserId");
+    const orderId = searchParams.get("orderId");
+
+    if (!lineUserId || !orderId) {
+      return NextResponse.json(
+        { error: "lineUserId and orderId are required" },
+        { status: 400 }
+      );
+    }
+
+    const customer = await prisma.customer.findUnique({ where: { lineUserId } });
+    if (!customer) {
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+    }
+
+    const order = await prisma.order.findFirst({
+      where: { orderId, customerId: customer.id },
+    });
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    if (!order.requestedDeliveryDate) {
+      return NextResponse.json({ error: "No booking to cancel" }, { status: 400 });
+    }
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { requestedDeliveryDate: null },
+    });
+
+    // Notify admin
+    notifyAdminLine(
+      `❌ ลูกค้ายกเลิกคิว\n\nลูกค้า: ${customer.name}\nออเดอร์: ${orderId}`
+    ).catch(() => {});
+
+    // Acknowledge the cancellation to the customer on LINE
+    pushTextMessage(
+      customer.lineUserId!,
+      `❌ ยกเลิกคิวเรียบร้อย\n\nออเดอร์: ${orderId}\nหากต้องการจองใหม่ เข้าไปจองได้ที่หน้า "จองคิว" ครับ 😊`
+    ).catch(() => {});
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to cancel booking:", error);
+    return NextResponse.json({ error: "Failed to cancel booking" }, { status: 500 });
   }
 }

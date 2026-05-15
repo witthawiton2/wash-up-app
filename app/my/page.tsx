@@ -75,6 +75,7 @@ export default function MyPage() {
   const [bookingNote, setBookingNote] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
 
   // Payment slip upload
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
@@ -273,6 +274,27 @@ export default function MyPage() {
       alert("เกิดข้อผิดพลาด");
     } finally {
       setPayLoading(false);
+    }
+  };
+
+  const handleCancelBooking = async (orderId: string) => {
+    if (!lineUserId) return;
+    if (!confirm(`ยกเลิกคิวของออเดอร์ ${orderId}?`)) return;
+    setCancellingOrderId(orderId);
+    try {
+      const res = await fetch(
+        `/api/my/booking?lineUserId=${encodeURIComponent(lineUserId)}&orderId=${encodeURIComponent(orderId)}`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        loadData(lineUserId);
+      } else {
+        alert("ยกเลิกคิวไม่สำเร็จ");
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setCancellingOrderId(null);
     }
   };
 
@@ -552,6 +574,35 @@ export default function MyPage() {
             {bookingSuccess && (
               <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl p-4 text-center text-sm">
                 จองคิวสำเร็จ รอการยืนยันจากร้าน
+              </div>
+            )}
+
+            {/* คิวที่จองไว้ (history + cancel) */}
+            {orders.some((o) => o.requestedDeliveryDate) && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">คิวที่จองไว้</h4>
+                <div className="space-y-2">
+                  {orders
+                    .filter((o) => o.requestedDeliveryDate)
+                    .map((o) => (
+                      <div
+                        key={o.orderId}
+                        className="flex items-center justify-between gap-2 p-3 rounded-lg border border-emerald-200 bg-emerald-50"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-bold text-blue-600">{o.orderId}</div>
+                          <div className="text-xs text-emerald-700">📅 {o.requestedDeliveryDate}</div>
+                        </div>
+                        <button
+                          onClick={() => handleCancelBooking(o.orderId)}
+                          disabled={cancellingOrderId === o.orderId}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 border border-red-200 bg-white hover:bg-red-50 disabled:opacity-50"
+                        >
+                          {cancellingOrderId === o.orderId ? "กำลังยกเลิก..." : "ยกเลิกคิว"}
+                        </button>
+                      </div>
+                    ))}
+                </div>
               </div>
             )}
 

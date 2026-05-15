@@ -405,7 +405,7 @@ export async function DELETE(request: NextRequest) {
 
     const order = await prisma.order.findUnique({
       where: { orderId },
-      include: { items: true },
+      include: { items: true, customer: true },
     });
 
     if (!order) {
@@ -436,6 +436,17 @@ export async function DELETE(request: NextRequest) {
         where: { id: order.customerId },
         data: { remaining: { increment: refund } },
       });
+    }
+
+    // Notify customer on LINE that the order was cancelled
+    if (order.customer?.lineUserId) {
+      const refundLine = refund > 0
+        ? `\nยอดแพ็คเกจคืนกลับ ${refund} ชิ้น`
+        : "";
+      const message = `❌ ยกเลิกออเดอร์\n\nออเดอร์: ${orderId}\nทางร้านได้ยกเลิกออเดอร์นี้แล้วครับ${refundLine}\n\nหากมีข้อสงสัย ติดต่อทางร้านได้เลยครับ 🙏`;
+      pushTextMessage(order.customer.lineUserId, message).catch((err) =>
+        console.error("Failed to send LINE cancel notification:", err)
+      );
     }
 
     return NextResponse.json({ success: true, refunded: refund });

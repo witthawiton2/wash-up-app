@@ -13,6 +13,7 @@ interface Booking {
   status: string;
   requestedDate: string;
   requestedTime: string;
+  deliveryMethod: string;
   note: string;
   orderDate: string;
 }
@@ -106,6 +107,12 @@ export default function BookingsPage() {
                   <span className="text-slate-700">{b.address || "-"}</span>
                 </div>
               </div>
+
+              {b.deliveryMethod && (
+                <div className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 mb-2">
+                  📦 {b.deliveryMethod}
+                </div>
+              )}
 
               <div className="text-xs text-slate-500 mb-1">
                 {b.items.map((i) => `${i.name} x${i.qty}`).join(", ")}

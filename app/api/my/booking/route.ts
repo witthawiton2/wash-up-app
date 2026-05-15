@@ -6,7 +6,7 @@ import { notifyAdminNewBooking, notifyAdminLine } from "@/lib/notify-admin";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { lineUserId, activity, orderId, date, time, phone, note } = body;
+    const { lineUserId, activity, orderId, date, time, phone, note, deliveryMethod } = body;
 
     if (!lineUserId || !activity || !date || !time) {
       return NextResponse.json(
@@ -14,6 +14,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const methodLabels: Record<string, string> = {
+      self: "รับด้วยตัวเอง",
+      home: "ฝากที่พัก",
+    };
+    const methodLabel = deliveryMethod ? methodLabels[deliveryMethod] || deliveryMethod : "";
 
     const customer = await prisma.customer.findUnique({
       where: { lineUserId },
@@ -33,7 +39,7 @@ export async function POST(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const bookingInfo = `จองคิว: ${activityLabels[activity] || activity}${orderId ? ` (${orderId})` : ""} วันที่ ${date} เวลา ${time}${phone ? ` โทร: ${phone}` : ""}${note ? ` หมายเหตุ: ${note}` : ""}`;
+    const bookingInfo = `จองคิว: ${activityLabels[activity] || activity}${orderId ? ` (${orderId})` : ""} วันที่ ${date} เวลา ${time}${methodLabel ? ` วิธี: ${methodLabel}` : ""}${phone ? ` โทร: ${phone}` : ""}${note ? ` หมายเหตุ: ${note}` : ""}`;
 
     // If orderId specified, update that order; otherwise use latest pending order
     const targetOrder = orderId
@@ -51,13 +57,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Notify admin via LINE
-    notifyAdminNewBooking(customer.name, activityLabels[activity] || activity, date, time, orderId).catch(() => {});
+    const adminActivity = methodLabel
+      ? `${activityLabels[activity] || activity} (${methodLabel})`
+      : activityLabels[activity] || activity;
+    notifyAdminNewBooking(customer.name, adminActivity, date, time, orderId).catch(() => {});
 
     // Send LINE notification to customer
     if (customer.lineUserId) {
       pushTextMessage(
         customer.lineUserId,
-        `📅 จองคิวสำเร็จ!\n\n${activityLabels[activity] || activity}${orderId ? `\nออเดอร์: ${orderId}` : ""}\nวันที่: ${date}\nเวลา: ${time}\n\nรอการยืนยันจากร้านครับ 😊`
+        `📅 จองคิวสำเร็จ!\n\n${activityLabels[activity] || activity}${orderId ? `\nออเดอร์: ${orderId}` : ""}\nวันที่: ${date}\nเวลา: ${time}${methodLabel ? `\nวิธี: ${methodLabel}` : ""}\n\nรอการยืนยันจากร้านครับ 😊`
       ).catch((err) => console.error("Failed to send booking LINE:", err));
     }
 

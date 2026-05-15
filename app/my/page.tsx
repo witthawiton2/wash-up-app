@@ -76,6 +76,7 @@ export default function MyPage() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [bookingDeliveryMethod, setBookingDeliveryMethod] = useState<"" | "self" | "home">("");
 
   // Payment slip upload
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
@@ -299,7 +300,7 @@ export default function MyPage() {
   };
 
   const handleBooking = async () => {
-    if (!bookingActivity || !bookingDate || !bookingTime || !lineUserId) return;
+    if (!bookingActivity || !bookingDate || !bookingTime || !bookingDeliveryMethod || !lineUserId) return;
     setBookingLoading(true);
     try {
       const res = await fetch("/api/my/booking", {
@@ -311,6 +312,7 @@ export default function MyPage() {
           orderId: bookingOrderId || undefined,
           date: bookingDate,
           time: bookingTime,
+          deliveryMethod: bookingDeliveryMethod,
           phone: bookingPhone || customer?.phone,
           note: bookingNote,
         }),
@@ -322,6 +324,7 @@ export default function MyPage() {
         setBookingTimeSlot("");
         setBookingDate("");
         setBookingTime("");
+        setBookingDeliveryMethod("");
         setBookingNote("");
       }
     } catch {
@@ -733,8 +736,43 @@ export default function MyPage() {
               </div>
             )}
 
-            {/* เบอร์โทร + หมายเหตุ */}
+            {/* วิธีรับ-ส่งผ้า */}
             {bookingTime && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">วิธีรับ-ส่งผ้า</h4>
+                <div className="space-y-2">
+                  {[
+                    { id: "self" as const, label: "รับด้วยตัวเอง", desc: "มาที่ร้าน" },
+                    { id: "home" as const, label: "ฝากที่พัก", desc: "ร้านไปรับ/ส่งที่บ้าน" },
+                  ].map((m) => (
+                    <label
+                      key={m.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        bookingDeliveryMethod === m.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-slate-200 hover:border-blue-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="deliveryMethod"
+                        value={m.id}
+                        checked={bookingDeliveryMethod === m.id}
+                        onChange={() => setBookingDeliveryMethod(m.id)}
+                        className="w-5 h-5 text-blue-500"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-slate-700">{m.label}</div>
+                        <div className="text-[11px] text-slate-400">{m.desc}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* เบอร์โทร + หมายเหตุ */}
+            {bookingTime && bookingDeliveryMethod && (
               <div className="bg-white rounded-xl p-4 shadow-sm space-y-4">
                 <div>
                   <h4 className="text-sm font-bold text-slate-700 mb-2">เบอร์โทรติดต่อ</h4>

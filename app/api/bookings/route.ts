@@ -5,6 +5,7 @@ import { formatDate, formatTime } from "@/lib/timezone";
 // note format from POST /api/my/booking:
 //   "จองคิว: <activity> [(orderId)] วันที่ YYYY-MM-DD เวลา HH:MM[ โทร: ...][ หมายเหตุ: ...]"
 const NOTE_DATE_RE = /วันที่\s+(\d{4}-\d{2}-\d{2})\s+เวลา\s+(\d{1,2}:\d{2})/;
+const NOTE_METHOD_RE = /\sวิธี:\s+([^|]+?)(?=\s+(?:โทร:|หมายเหตุ:)|\s+\||$)/;
 const BOOKING_SEGMENT_RE = /(?:^|\s\|\s)จองคิว:[^|]*(?=\s\||$)/g;
 
 function reformatNoteDate(iso: string): string {
@@ -25,11 +26,13 @@ export async function GET() {
     const bookings = orders.map((o) => {
       const note = o.note || "";
       const match = note.match(NOTE_DATE_RE);
+      const methodMatch = note.match(NOTE_METHOD_RE);
 
       // Prefer the time captured in the note (always Bangkok wall-clock and
       // immune to the legacy timezone bug). Fall back to requestedDeliveryDate.
       const requestedDate = match ? reformatNoteDate(match[1]) : formatDate(o.requestedDeliveryDate!);
       const requestedTime = match ? match[2] : formatTime(o.requestedDeliveryDate!);
+      const deliveryMethod = methodMatch ? methodMatch[1].trim() : "";
 
       // Strip the duplicated "จองคิว: ..." segment from the note for display.
       const cleanedNote = note.replace(BOOKING_SEGMENT_RE, "").trim().replace(/^\|\s*/, "");
@@ -45,6 +48,7 @@ export async function GET() {
         status: o.status,
         requestedDate,
         requestedTime,
+        deliveryMethod,
         note: cleanedNote,
         orderDate: formatDate(o.orderDate),
       };

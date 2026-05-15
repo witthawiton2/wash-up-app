@@ -405,17 +405,40 @@ export async function DELETE(request: NextRequest) {
 
     const order = await prisma.order.findUnique({
       where: { orderId },
+      include: { items: true },
     });
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
+    // Calculate how many package items this order had consumed so we can refund
+    let refund = 0;
+    if (order.customerId && order.items.length > 0) {
+      const itemNames = order.items.map((i) => i.itemName);
+      const serviceItems = await prisma.serviceItem.findMany({
+        where: { name: { in: itemNames }, inPackage: true, active: true },
+      });
+      const svcMap = new Map(serviceItems.map((s) => [s.name, s.packageDeduction]));
+      for (const item of order.items) {
+        const ded = svcMap.get(item.itemName);
+        if (ded) refund += item.quantity * ded;
+      }
+    }
+
     // Delete items first, then order
     await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
     await prisma.order.delete({ where: { orderId } });
 
-    return NextResponse.json({ success: true });
+    // Refund the package deduction back to the customer
+    if (refund > 0 && order.customerId) {
+      await prisma.customer.update({
+        where: { id: order.customerId },
+        data: { remaining: { increment: refund } },
+      });
+    }
+
+    return NextResponse.json({ success: true, refunded: refund });
   } catch (error) {
     console.error("Failed to delete order:", error);
     return NextResponse.json(

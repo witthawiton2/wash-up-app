@@ -360,7 +360,7 @@ export default function MyPage() {
   const pendingOrders = orders.filter((o) => o.status !== "ส่งแล้ว");
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: "linear-gradient(180deg, #f0f4ff 0%, #f8fafc 100%)" }}>
+    <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #f0f4ff 0%, #f8fafc 100%)", paddingBottom: "calc(5.5rem + env(safe-area-inset-bottom))" }}>
       {/* Header */}
       <div className="text-white px-4 pt-8 pb-10 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #0c1222 0%, #1a2744 40%, #2563eb 100%)" }}>
         {/* Decorative circles */}
@@ -861,7 +861,7 @@ export default function MyPage() {
       )}
 
       {/* Bottom Tab Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-t border-slate-200/50 flex safe-area-bottom" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-t border-slate-200/50 flex safe-area-bottom shadow-[0_-2px_10px_rgba(0,0,0,0.04)]" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {([
           { key: "orders" as Tab, label: "รายการ", icon: "📋" },
           { key: "package" as Tab, label: "แพ็คเกจ", icon: "📦" },

@@ -6,6 +6,7 @@ interface ItemBreakdown {
   name: string;
   qty: number;
   revenue: number;
+  category: string;
 }
 
 interface DailySummary {
@@ -426,18 +427,37 @@ export default function SummaryPage() {
                     {expandedDate === row.date && (
                       <tr key={`${row.date}-detail`}>
                         <td colSpan={6} className="bg-slate-50 px-6 py-3">
-                          <div className="text-sm font-medium text-slate-600 mb-2">
+                          <div className="text-sm font-medium text-slate-600 mb-3">
                             รายการในวันที่ {row.date}
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {row.items.map((item) => (
-                              <div
-                                key={item.name}
-                                className="bg-white rounded-lg px-3 py-2 border border-slate-200"
-                              >
-                                <div className="font-medium text-slate-700 text-sm">{item.name}</div>
-                                <div className="text-xs text-slate-400">
-                                  {item.qty} ชิ้น — {item.revenue.toLocaleString()} ฿
+                          <div className="space-y-3">
+                            {Object.entries(
+                              row.items.reduce((acc, item) => {
+                                (acc[item.category] ||= []).push(item);
+                                return acc;
+                              }, {} as Record<string, ItemBreakdown[]>)
+                            ).map(([category, items]) => (
+                              <div key={category}>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <span className="text-[11px] font-semibold text-slate-700 bg-slate-200 px-2 py-0.5 rounded-full">
+                                    {category}
+                                  </span>
+                                  <span className="text-[10px] text-slate-400">
+                                    รวม {items.reduce((s, i) => s + i.qty, 0)} ชิ้น
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                                  {items.map((item) => (
+                                    <div
+                                      key={`${category}-${item.name}`}
+                                      className="bg-white rounded-lg px-3 py-2 border border-slate-200"
+                                    >
+                                      <div className="font-medium text-slate-700 text-sm">{item.name}</div>
+                                      <div className="text-xs text-slate-400">
+                                        {item.qty} ชิ้น — {item.revenue.toLocaleString()} ฿
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               </div>
                             ))}

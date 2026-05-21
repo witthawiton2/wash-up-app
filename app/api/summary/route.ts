@@ -77,6 +77,22 @@ export async function GET(request: NextRequest) {
       statusCounts[s.status] = s._count._all;
     }
 
+    // Map every item name in the detail window → its category. Best-effort:
+    // when a name exists in multiple categories the first active one wins.
+    const allItemNames = Array.from(
+      new Set(detailOrders.flatMap((o) => o.items.map((i) => i.itemName)))
+    );
+    const serviceItems = allItemNames.length
+      ? await prisma.serviceItem.findMany({
+          where: { name: { in: allItemNames }, active: true },
+          select: { name: true, category: true },
+        })
+      : [];
+    const categoryByName = new Map<string, string>();
+    for (const si of serviceItems) {
+      if (!categoryByName.has(si.name)) categoryByName.set(si.name, si.category);
+    }
+
     // Daily aggregation (over the detail window)
     const dailyMap = new Map<
       string,
@@ -136,6 +152,7 @@ export async function GET(request: NextRequest) {
         name,
         qty: data.qty,
         revenue: data.revenue,
+        category: categoryByName.get(name) || "อื่นๆ",
       })),
     }));
 
@@ -160,20 +177,6 @@ export async function GET(request: NextRequest) {
         existing.revenue += item.total;
         itemTotals.set(item.itemName, existing);
       }
-    }
-
-    // Map item names → category from ServiceItem table (best-effort; if the
-    // same name exists in multiple categories the first active one wins).
-    const itemNames = Array.from(itemTotals.keys());
-    const serviceItems = itemNames.length
-      ? await prisma.serviceItem.findMany({
-          where: { name: { in: itemNames }, active: true },
-          select: { name: true, category: true },
-        })
-      : [];
-    const categoryByName = new Map<string, string>();
-    for (const si of serviceItems) {
-      if (!categoryByName.has(si.name)) categoryByName.set(si.name, si.category);
     }
 
     const topItems = Array.from(itemTotals.entries())

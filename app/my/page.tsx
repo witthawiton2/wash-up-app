@@ -160,14 +160,10 @@ export default function MyPage() {
     const pkg = packages.find((p) => p.name === pkgName);
     if (pkg && pkg.price > 0) {
       try {
-        const res = await fetch("/api/promptpay-qr", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ amount: pkg.price }),
-        });
+        const res = await fetch(`/api/promptpay-qr?amount=${pkg.price}`);
         if (res.ok) {
           const data = await res.json();
-          setQrUrl(data.qrDataUri);
+          setQrUrl(data.qr);
         }
       } catch { /* ignore */ }
     }
@@ -200,7 +196,7 @@ export default function MyPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lineUserId,
-          package: selectedPkg,
+          packageName: selectedPkg,
           slipUrl: uploadData.url,
         }),
       });

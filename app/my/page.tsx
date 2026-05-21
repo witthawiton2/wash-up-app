@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useSettings } from "@/lib/settings-context";
 import liff from "@line/liff";
 
 interface CustomerInfo {
@@ -49,6 +50,7 @@ const statusLabel: Record<string, { text: string; color: string }> = {
 type Tab = "orders" | "package" | "booking";
 
 export default function MyPage() {
+  const { settings } = useSettings();
   const [lineUserId, setLineUserId] = useState("");
   const [customer, setCustomer] = useState<CustomerInfo | null>(null);
   const [orders, setOrders] = useState<MyOrder[]>([]);
@@ -371,7 +373,11 @@ export default function MyPage() {
 
         <div className="relative z-10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/logo.png" alt="Wash Up" className="h-12 mx-auto mb-4 brightness-0 invert opacity-90" />
+          <img
+            src={settings.logoUrl || "/images/logo.png"}
+            alt={settings.companyName || "Wash Up"}
+            className={`h-16 mx-auto mb-4 object-contain ${settings.logoUrl ? "" : "brightness-0 invert opacity-90"}`}
+          />
 
           {/* Customer Card */}
           <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/10">

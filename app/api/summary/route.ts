@@ -1,17 +1,28 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatDate, todayStart } from "@/lib/timezone";
 
 const DETAIL_DAYS = 90;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const topDateParam = searchParams.get("topDate"); // YYYY-MM-DD (Bangkok)
+
     const today = todayStart();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     const detailFrom = new Date(today);
     detailFrom.setDate(detailFrom.getDate() - DETAIL_DAYS);
+
+    // Optional single-day window for top items
+    let topDayStart: Date | null = null;
+    let topDayEnd: Date | null = null;
+    if (topDateParam) {
+      topDayStart = new Date(`${topDateParam}T00:00:00+07:00`);
+      topDayEnd = new Date(`${topDateParam}T23:59:59.999+07:00`);
+    }
 
     const [
       totalAgg,
@@ -135,9 +146,14 @@ export async function GET() {
       items: day.totalItems,
     }));
 
-    // Top items (within detail window)
+    // Top items: optionally narrowed to a single day, otherwise over the
+    // detail window.
+    const topSourceOrders = topDayStart && topDayEnd
+      ? detailOrders.filter((o) => o.orderDate >= topDayStart! && o.orderDate <= topDayEnd!)
+      : detailOrders;
+
     const itemTotals = new Map<string, { qty: number; revenue: number }>();
-    for (const order of detailOrders) {
+    for (const order of topSourceOrders) {
       for (const item of order.items) {
         const existing = itemTotals.get(item.itemName) || { qty: 0, revenue: 0 };
         existing.qty += item.quantity;
@@ -145,9 +161,67 @@ export async function GET() {
         itemTotals.set(item.itemName, existing);
       }
     }
+
+    // Map item names → category from ServiceItem table (best-effort; if the
+    // same name exists in multiple categories the first active one wins).
+    const itemNames = Array.from(itemTotals.keys());
+    const serviceItems = itemNames.length
+      ? await prisma.serviceItem.findMany({
+          where: { name: { in: itemNames }, active: true },
+          select: { name: true, category: true },
+        })
+      : [];
+    const categoryByName = new Map<string, string>();
+    for (const si of serviceItems) {
+      if (!categoryByName.has(si.name)) categoryByName.set(si.name, si.category);
+    }
+
     const topItems = Array.from(itemTotals.entries())
-      .map(([name, data]) => ({ name, ...data }))
+      .map(([name, data]) => ({
+        name,
+        ...data,
+        category: categoryByName.get(name) || "อื่นๆ",
+      }))
       .sort((a, b) => b.qty - a.qty);
+
+    // Ironer stats: parse "รีดโดย: <name>" out of order notes from the same
+    // window as top items (single day if topDate set, else 90d).
+    const IRONED_RE = /รีดโดย:\s*([^|]+?)(?:\s*\||$)/;
+    type IronerOrder = {
+      orderId: string;
+      customer: string;
+      date: string;
+      totalAmount: number;
+      items: { name: string; qty: number }[];
+    };
+    const ironerMap = new Map<string, IronerOrder[]>();
+    for (const o of topSourceOrders) {
+      const note = o.note || "";
+      const m = note.match(IRONED_RE);
+      if (!m) continue;
+      const ironerName = m[1].trim();
+      if (!ironerName) continue;
+      const list = ironerMap.get(ironerName) || [];
+      list.push({
+        orderId: o.orderId,
+        customer: o.customer?.name || o.walkInName || "ลูกค้าทั่วไป",
+        date: formatDate(o.orderDate),
+        totalAmount: o.totalAmount,
+        items: o.items.map((i) => ({ name: i.itemName, qty: i.quantity })),
+      });
+      ironerMap.set(ironerName, list);
+    }
+    const ironers = Array.from(ironerMap.entries())
+      .map(([name, orders]) => ({
+        name,
+        count: orders.length,
+        totalPieces: orders.reduce(
+          (s, o) => s + o.items.reduce((s2, i) => s2 + i.qty, 0),
+          0
+        ),
+        orders,
+      }))
+      .sort((a, b) => b.count - a.count);
 
     // Top customers (within detail window)
     const customerTotals = new Map<string, { name: string; orders: number; revenue: number }>();
@@ -188,6 +262,7 @@ export async function GET() {
       last7,
       topItems,
       topCustomers,
+      ironers,
       recentOrders,
       customerCount,
     });

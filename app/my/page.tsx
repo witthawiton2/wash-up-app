@@ -11,6 +11,7 @@ interface CustomerInfo {
   remaining: number;
   endDate: string | null;
   customerCode: string;
+  renewPending: boolean;
 }
 
 interface OrderItem {
@@ -500,64 +501,77 @@ export default function MyPage() {
               </div>
             )}
 
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <label className="block text-sm font-medium text-slate-600 mb-2">เลือกแพ็คเกจ</label>
-              <select
-                value={selectedPkg}
-                onChange={(e) => handleSelectPkg(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">-- เลือกแพ็คเกจ --</option>
-                {packages.map((p) => (
-                  <option key={p.id} value={p.name}>
-                    {p.name} — {p.totalItems} ชิ้น / {p.validDays} วัน ({p.price.toLocaleString()}฿)
-                  </option>
-                ))}
-              </select>
+            {customer?.renewPending ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center">
+                <div className="text-3xl mb-2">⏳</div>
+                <p className="text-amber-800 font-bold text-base mb-1">รอแอดมินอนุมัติ</p>
+                <p className="text-amber-700 text-sm">
+                  คำขอเติมแพ็คเกจของคุณส่งให้ร้านแล้ว<br />
+                  รอแอดมินตรวจสอบสลิปและยืนยัน 😊
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-white rounded-xl p-4 shadow-sm">
+                  <label className="block text-sm font-medium text-slate-600 mb-2">เลือกแพ็คเกจ</label>
+                  <select
+                    value={selectedPkg}
+                    onChange={(e) => handleSelectPkg(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">-- เลือกแพ็คเกจ --</option>
+                    {packages.map((p) => (
+                      <option key={p.id} value={p.name}>
+                        {p.name} — {p.totalItems} ชิ้น / {p.validDays} วัน ({p.price.toLocaleString()}฿)
+                      </option>
+                    ))}
+                  </select>
 
-              {pkg && (
-                <div className="mt-3 bg-blue-50 rounded-lg p-3 text-xs space-y-1">
-                  {pkg.description && <p className="text-slate-500">{pkg.description}</p>}
-                  <p className="text-blue-700 font-medium">จำนวน: {pkg.totalItems} ชิ้น</p>
-                  <p className="text-blue-700 font-medium">อายุ: {pkg.validDays} วัน</p>
-                  <p className="text-blue-700 font-bold text-base">ราคา: {pkg.price.toLocaleString()}฿</p>
+                  {pkg && (
+                    <div className="mt-3 bg-blue-50 rounded-lg p-3 text-xs space-y-1">
+                      {pkg.description && <p className="text-slate-500">{pkg.description}</p>}
+                      <p className="text-blue-700 font-medium">จำนวน: {pkg.totalItems} ชิ้น</p>
+                      <p className="text-blue-700 font-medium">อายุ: {pkg.validDays} วัน</p>
+                      <p className="text-blue-700 font-bold text-base">ราคา: {pkg.price.toLocaleString()}฿</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {qrUrl && (
-              <div className="bg-white rounded-xl p-4 shadow-sm text-center">
-                <p className="text-sm font-medium text-slate-600 mb-3">สแกน QR ชำระเงิน</p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={qrUrl} alt="PromptPay QR" className="mx-auto w-48 h-48 rounded-lg" />
-                <p className="text-xs text-slate-400 mt-2">PromptPay</p>
-              </div>
-            )}
-
-            {selectedPkg && (
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <p className="text-sm font-medium text-slate-600 mb-2">แนบสลิปการโอนเงิน</p>
-                {slipPreview && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={slipPreview} alt="slip" className="w-full max-h-60 object-contain rounded-lg mb-3" />
+                {qrUrl && (
+                  <div className="bg-white rounded-xl p-4 shadow-sm text-center">
+                    <p className="text-sm font-medium text-slate-600 mb-3">สแกน QR ชำระเงิน</p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={qrUrl} alt="PromptPay QR" className="mx-auto w-48 h-48 rounded-lg" />
+                    <p className="text-xs text-slate-400 mt-2">PromptPay</p>
+                  </div>
                 )}
-                <input ref={slipRef} type="file" accept="image/*" capture="environment" onChange={handleSlipChange} className="hidden" />
-                <button
-                  onClick={() => slipRef.current?.click()}
-                  className="w-full py-2.5 rounded-lg border-2 border-dashed border-slate-300 text-sm text-slate-500 hover:border-blue-400"
-                >
-                  {slipPreview ? "เปลี่ยนรูปสลิป" : "ถ่ายรูป / เลือกรูปสลิป"}
-                </button>
 
-                <button
-                  onClick={handleRenew}
-                  disabled={!slipFile || renewLoading}
-                  className="w-full mt-3 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #1e40af, #2563eb)" }}
-                >
-                  {renewLoading ? "กำลังส่ง..." : "ส่งคำขอเติมแพ็คเกจ"}
-                </button>
-              </div>
+                {selectedPkg && (
+                  <div className="bg-white rounded-xl p-4 shadow-sm">
+                    <p className="text-sm font-medium text-slate-600 mb-2">แนบสลิปการโอนเงิน</p>
+                    {slipPreview && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={slipPreview} alt="slip" className="w-full max-h-60 object-contain rounded-lg mb-3" />
+                    )}
+                    <input ref={slipRef} type="file" accept="image/*" capture="environment" onChange={handleSlipChange} className="hidden" />
+                    <button
+                      onClick={() => slipRef.current?.click()}
+                      className="w-full py-2.5 rounded-lg border-2 border-dashed border-slate-300 text-sm text-slate-500 hover:border-blue-400"
+                    >
+                      {slipPreview ? "เปลี่ยนรูปสลิป" : "ถ่ายรูป / เลือกรูปสลิป"}
+                    </button>
+
+                    <button
+                      onClick={handleRenew}
+                      disabled={!slipFile || renewLoading}
+                      className="w-full mt-3 py-2.5 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+                      style={{ background: "linear-gradient(135deg, #1e40af, #2563eb)" }}
+                    >
+                      {renewLoading ? "กำลังส่ง..." : "ส่งคำขอเติมแพ็คเกจ"}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

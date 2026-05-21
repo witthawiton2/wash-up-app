@@ -242,6 +242,7 @@ export default function CustomerPage() {
           <table className="data-table">
             <thead>
               <tr>
+                <th>รหัสลูกค้า</th>
                 <th>ชื่อ</th>
                 <th>เบอร์โทร</th>
                 <th>ที่อยู่</th>
@@ -255,15 +256,18 @@ export default function CustomerPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-slate-400">กำลังโหลด...</td>
+                  <td colSpan={9} className="text-center py-8 text-slate-400">กำลังโหลด...</td>
                 </tr>
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-8 text-slate-400">ยังไม่มีลูกค้า</td>
+                  <td colSpan={9} className="text-center py-8 text-slate-400">ยังไม่มีลูกค้า</td>
                 </tr>
               ) : (
                 pagedCustomers.map((c) => (
                   <tr key={c.id}>
+                    <td className="font-mono text-slate-500 text-sm">
+                      {c.customerCode || <span className="text-slate-300">-</span>}
+                    </td>
                     <td className="font-medium">
                       {c.name}
                       {c.status === "pending" && <span className="badge badge-yellow ml-1">รอยืนยัน</span>}

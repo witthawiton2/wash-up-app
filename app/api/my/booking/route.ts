@@ -3,6 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { pushTextMessage } from "@/lib/line-api";
 import { notifyAdminNewBooking, notifyAdminLine } from "@/lib/notify-admin";
 
+// Strip any existing "จองคิว: ..." segment from a note so re-bookings or
+// cancellations don't leave stale booking text behind that the bookings
+// page would later misread.
+const BOOKING_SEGMENT_RE = /(?:^|\s\|\s)จองคิว:[^|]*(?=\s\||$)/g;
+
+function stripBookingFromNote(note: string | null): string {
+  if (!note) return "";
+  return note.replace(BOOKING_SEGMENT_RE, "").trim().replace(/^\|\s*/, "");
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -47,11 +57,14 @@ export async function POST(request: NextRequest) {
       : latestOrder;
 
     if (targetOrder) {
+      // Drop any prior "จองคิว: ..." segment so a re-booking replaces the old
+      // booking info instead of stacking on top of it.
+      const baseNote = stripBookingFromNote(targetOrder.note);
       await prisma.order.update({
         where: { id: targetOrder.id },
         data: {
           requestedDeliveryDate: new Date(`${date}T${time}:00+07:00`),
-          note: targetOrder.note ? `${targetOrder.note} | ${bookingInfo}` : bookingInfo,
+          note: baseNote ? `${baseNote} | ${bookingInfo}` : bookingInfo,
         },
       });
     }
@@ -107,7 +120,10 @@ export async function DELETE(request: NextRequest) {
 
     await prisma.order.update({
       where: { id: order.id },
-      data: { requestedDeliveryDate: null },
+      data: {
+        requestedDeliveryDate: null,
+        note: stripBookingFromNote(order.note),
+      },
     });
 
     // Notify admin

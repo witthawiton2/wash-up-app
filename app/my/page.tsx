@@ -357,7 +357,9 @@ export default function MyPage() {
   }
 
   const pkg = packages.find((p) => p.name === selectedPkg);
-  const pendingOrders = orders.filter((o) => o.status !== "ส่งแล้ว");
+  const pendingOrders = orders.filter(
+    (o) => o.status !== "ส่งแล้ว" && !o.requestedDeliveryDate
+  );
 
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #f0f4ff 0%, #f8fafc 100%)", paddingBottom: "calc(5.5rem + env(safe-area-inset-bottom))" }}>

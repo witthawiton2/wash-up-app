@@ -11,11 +11,18 @@ interface Payment {
   paymentSlipUrl: string | null;
   paymentStatus: string;
   orderDate: string;
+  paidAt: string | null;
   status: string;
   items: { name: string; qty: number; price: number }[];
 }
 
-const filters = ["ทั้งหมด", "รอตรวจสอบ", "ยังไม่ชำระ"];
+const filters = ["ทั้งหมด", "รอตรวจสอบ", "ยังไม่ชำระ", "ชำระแล้ว"];
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const firstOfMonthIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+};
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -25,17 +32,25 @@ export default function PaymentsPage() {
   const [viewSlip, setViewSlip] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<{ orderId: string; action: string } | null>(null);
+  const [dateFrom, setDateFrom] = useState<string>(firstOfMonthIso());
+  const [dateTo, setDateTo] = useState<string>(todayIso());
+
+  const isPaidView = activeFilter === "ชำระแล้ว";
 
   const fetchPayments = useCallback(async () => {
+    setLoading(true);
     try {
-      const res = await fetch("/api/payments");
+      const url = isPaidView
+        ? `/api/payments?status=paid&from=${dateFrom}&to=${dateTo}`
+        : "/api/payments";
+      const res = await fetch(url);
       if (res.ok) setPayments(await res.json());
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isPaidView, dateFrom, dateTo]);
 
   useEffect(() => {
     fetchPayments();
@@ -66,6 +81,7 @@ export default function PaymentsPage() {
     let list = payments;
     if (activeFilter === "รอตรวจสอบ") list = payments.filter((p) => p.paymentStatus === "pending");
     else if (activeFilter === "ยังไม่ชำระ") list = payments.filter((p) => p.paymentStatus === "unpaid");
+    // "ชำระแล้ว" relies on the server-side filter; no further narrowing needed.
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -77,6 +93,10 @@ export default function PaymentsPage() {
     }
     return list;
   })();
+
+  const paidTotal = isPaidView
+    ? filtered.reduce((sum, p) => sum + p.totalAmount, 0)
+    : 0;
 
   const pendingCount = payments.filter((p) => p.paymentStatus === "pending").length;
   const unpaidCount = payments.filter((p) => p.paymentStatus === "unpaid").length;
@@ -111,6 +131,36 @@ export default function PaymentsPage() {
           </button>
         ))}
       </div>
+
+      {isPaidView && (
+        <div className="card mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">ตั้งแต่วันที่</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">ถึงวันที่</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+            </div>
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <p className="text-[11px] text-emerald-700">รวมยอดในช่วง</p>
+              <p className="text-lg font-bold text-emerald-700">{paidTotal.toLocaleString()} ฿</p>
+              <p className="text-[10px] text-emerald-600/80">{filtered.length} รายการ</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <input
         type="text"
@@ -148,7 +198,11 @@ export default function PaymentsPage() {
                 <span className="text-base font-bold text-blue-600">{p.totalAmount.toLocaleString()} ฿</span>
               </div>
 
-              <p className="text-xs text-slate-400 mb-3">วันที่: {p.orderDate}</p>
+              <p className="text-xs text-slate-400 mb-1">วันที่ทำบิล: {p.orderDate}</p>
+              {p.paidAt && (
+                <p className="text-xs text-emerald-600 mb-3">✓ ชำระเมื่อ: {p.paidAt}</p>
+              )}
+              {!p.paidAt && <div className="mb-3" />}
 
               <div className="flex flex-wrap gap-2">
                 {p.paymentSlipUrl && (

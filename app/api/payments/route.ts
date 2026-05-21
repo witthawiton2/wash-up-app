@@ -3,12 +3,31 @@ import { prisma } from "@/lib/prisma";
 import { pushTextMessage } from "@/lib/line-api";
 import { formatDateTime } from "@/lib/timezone";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const statusParam = searchParams.get("status");
+    const fromParam = searchParams.get("from");
+    const toParam = searchParams.get("to");
+
+    const where: Record<string, unknown> = {};
+    if (statusParam === "paid") {
+      where.paymentStatus = "paid";
+      // Date range filter on paidAt (Asia/Bangkok wall-clock from input)
+      if (fromParam || toParam) {
+        const paidAt: Record<string, Date> = {};
+        if (fromParam) paidAt.gte = new Date(`${fromParam}T00:00:00+07:00`);
+        if (toParam) paidAt.lte = new Date(`${toParam}T23:59:59+07:00`);
+        where.paidAt = paidAt;
+      }
+    } else {
+      where.paymentStatus = { not: "paid" };
+    }
+
     const orders = await prisma.order.findMany({
-      where: { paymentStatus: { not: "paid" } },
+      where,
       include: { customer: true, items: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: statusParam === "paid" ? { paidAt: "desc" } : { createdAt: "desc" },
     });
 
     const payments = orders.map((o) => ({
@@ -22,6 +41,7 @@ export async function GET() {
       totalAmount: o.totalAmount,
       paymentSlipUrl: o.paymentSlipUrl,
       paymentStatus: o.paymentStatus,
+      paidAt: o.paidAt ? formatDateTime(o.paidAt) : null,
       orderDate: formatDateTime(o.orderDate),
       status: o.status,
     }));

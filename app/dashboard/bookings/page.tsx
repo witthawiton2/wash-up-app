@@ -24,10 +24,24 @@ const statusBadge: Record<string, string> = {
   "ส่งแล้ว": "badge-gray",
 };
 
+const todayIso = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+// Convert HTML date input (YYYY-MM-DD Gregorian) to the DD/MM/YYYY (Buddhist)
+// string that /api/bookings returns in `requestedDate`.
+const isoToThaiDate = (iso: string): string => {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${parseInt(y, 10) + 543}`;
+};
+
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState<string>(todayIso());
 
   const fetchBookings = useCallback(async () => {
     try {
@@ -46,12 +60,24 @@ export default function BookingsPage() {
 
   usePolling(fetchBookings, 30000);
 
-  const filtered = searchQuery.trim()
-    ? bookings.filter((b) => {
-        const q = searchQuery.toLowerCase();
-        return b.orderId.toLowerCase().includes(q) || b.customer.toLowerCase().includes(q) || b.phone.includes(q);
-      })
-    : bookings;
+  const thaiSelected = isoToThaiDate(selectedDate);
+
+  const filtered = (() => {
+    let list = selectedDate
+      ? bookings.filter((b) => b.requestedDate === thaiSelected)
+      : bookings;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(
+        (b) =>
+          b.orderId.toLowerCase().includes(q) ||
+          b.customer.toLowerCase().includes(q) ||
+          b.phone.includes(q)
+      );
+    }
+    // Sort by time ascending — values are already zero-padded "HH:MM"
+    return [...list].sort((a, b) => a.requestedTime.localeCompare(b.requestedTime));
+  })();
 
   const { paged, currentPage, totalPages, totalItems, itemsPerPage, setCurrentPage } = usePagination(filtered, 20);
 
@@ -59,6 +85,37 @@ export default function BookingsPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-slate-800">การจอง</h2>
+        <span className="text-sm text-slate-500">
+          {filtered.length} คิวในวันที่นี้
+        </span>
+      </div>
+
+      <div className="card mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+          <div>
+            <label className="block text-xs text-slate-500 mb-1">เลือกวันที่</label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSelectedDate(todayIso())}
+              className="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              วันนี้
+            </button>
+            <button
+              onClick={() => setSelectedDate("")}
+              className="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              ทั้งหมด
+            </button>
+          </div>
+        </div>
       </div>
 
       <input
@@ -72,7 +129,9 @@ export default function BookingsPage() {
       {loading ? (
         <div className="text-center py-12 text-slate-400">กำลังโหลด...</div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">ไม่มีรายการจอง</div>
+        <div className="text-center py-12 text-slate-400">
+          {selectedDate ? `ไม่มีคิวในวันที่ ${thaiSelected}` : "ไม่มีรายการจอง"}
+        </div>
       ) : (
         <div className="space-y-3">
           {paged.map((b) => (

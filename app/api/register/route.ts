@@ -16,8 +16,9 @@ export async function POST(request: NextRequest) {
       lineUserId,
     } = body;
 
-    // Validate required fields
-    if (!firstName || !lastName || !phone || !lineId || !address || !pkg) {
+    // Validate required fields — lineId (LINE display handle) is optional;
+    // lineUserId comes from LIFF and is the real identity link.
+    if (!firstName || !lastName || !phone || !address || !pkg) {
       return NextResponse.json(
         { error: "กรุณากรอกข้อมูลให้ครบถ้วน" },
         { status: 400 }
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     const customerData = {
       name,
       phone: phone.trim(),
-      lineId: lineId.trim(),
+      lineId: lineId?.trim() || null,
       address: address.trim(),
       package: pkg,
       remaining: 0,

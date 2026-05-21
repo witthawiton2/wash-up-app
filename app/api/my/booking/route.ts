@@ -60,10 +60,14 @@ export async function POST(request: NextRequest) {
       // Drop any prior "จองคิว: ..." segment so a re-booking replaces the old
       // booking info instead of stacking on top of it.
       const baseNote = stripBookingFromNote(targetOrder.note);
+      // The customer-facing time slots use "9:00" / "9:30" — pad to 2 digits
+      // so the ISO string is valid for new Date().
+      const [hh, mm] = time.split(":");
+      const isoTime = `${(hh || "0").padStart(2, "0")}:${(mm || "00").padStart(2, "0")}`;
       await prisma.order.update({
         where: { id: targetOrder.id },
         data: {
-          requestedDeliveryDate: new Date(`${date}T${time}:00+07:00`),
+          requestedDeliveryDate: new Date(`${date}T${isoTime}:00+07:00`),
           note: baseNote ? `${baseNote} | ${bookingInfo}` : bookingInfo,
         },
       });

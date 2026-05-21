@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import liff from "@line/liff";
+import { useSettings } from "@/lib/settings-context";
 
 interface PackageOption {
   id: number;
@@ -23,6 +24,7 @@ interface ExistingCustomer {
 }
 
 export default function RegisterPage() {
+  const { settings } = useSettings();
   const [lineUserId, setLineUserId] = useState("");
   const [mode, setMode] = useState<"loading" | "register" | "renew">("loading");
   const [existingCustomer, setExistingCustomer] = useState<ExistingCustomer | null>(null);
@@ -211,7 +213,11 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/logo.png" alt="Wash Up" className="h-16 mx-auto mb-2 brightness-0 invert opacity-90" />
+          <img
+            src={settings.logoUrl || "/images/logo.png"}
+            alt={settings.companyName || "Wash Up"}
+            className={`h-20 mx-auto mb-2 object-contain ${settings.logoUrl ? "" : "brightness-0 invert opacity-90"}`}
+          />
           <p className="text-blue-300/60 text-xs tracking-widest uppercase">{mode === "renew" ? "Renew Package" : "Register"}</p>
         </div>
 

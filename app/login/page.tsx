@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth, Role } from "@/lib/auth-context";
+import { useSettings } from "@/lib/settings-context";
 
 const roleLabels: Record<Role, { label: string; color: string }> = {
   admin: { label: "ผู้จัดการ", color: "#8b5cf6" },
@@ -12,6 +13,7 @@ const roleLabels: Record<Role, { label: string; color: string }> = {
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { settings } = useSettings();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -52,7 +54,11 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/logo.png" alt="Wash Up" className="h-20 mx-auto mb-2 brightness-0 invert opacity-90" />
+          <img
+            src={settings.logoUrl || "/images/logo.png"}
+            alt={settings.companyName || "Wash Up"}
+            className={`h-24 mx-auto mb-2 object-contain ${settings.logoUrl ? "" : "brightness-0 invert opacity-90"}`}
+          />
         </div>
 
         {/* Login Card */}

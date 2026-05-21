@@ -346,26 +346,32 @@ export default function LaundryPage() {
           }
 
           // Auto print (if enabled)
-          if (autoPrint) printReceipt({
-            id: 0,
-            orderId: editing.orderId,
-            customerId: editing.customerId,
-            customer: cust
-              ? `${cust.customerCode ? cust.customerCode + " " : ""}${cust.name}`
-              : walkIn || "",
-            phone: cust?.phone || "",
-            address: cust?.address || "",
-            lineUserId: cust?.lineUserId || "",
-            items: cleanedItems,
-            status: "รอซักรีด",
-            totalAmount: calcTotal(cleanedItems) + editing.hangersBought * 5,
-            hangersOwned: editing.hangersOwned,
-            hangersBought: editing.hangersBought,
-            discount: editing.discount,
-            checkPhotos: editing.checkPhotos.length > 0 ? JSON.stringify(editing.checkPhotos) : null,
-            note: editing.note,
-            date: formatDateTime(new Date()),
-          });
+          if (autoPrint) {
+            const subForPrint = calcTotal(cleanedItems) + editing.hangersBought * 5;
+            const netTotal = editing.discount > 0
+              ? parseFloat((subForPrint * (1 - editing.discount / 100)).toFixed(2))
+              : subForPrint;
+            printReceipt({
+              id: 0,
+              orderId: editing.orderId,
+              customerId: editing.customerId,
+              customer: cust
+                ? `${cust.customerCode ? cust.customerCode + " " : ""}${cust.name}`
+                : walkIn || "",
+              phone: cust?.phone || "",
+              address: cust?.address || "",
+              lineUserId: cust?.lineUserId || "",
+              items: cleanedItems,
+              status: "รอซักรีด",
+              totalAmount: netTotal,
+              hangersOwned: editing.hangersOwned,
+              hangersBought: editing.hangersBought,
+              discount: editing.discount,
+              checkPhotos: editing.checkPhotos.length > 0 ? JSON.stringify(editing.checkPhotos) : null,
+              note: editing.note,
+              date: formatDateTime(new Date()),
+            });
+          }
         }
       }
     } catch (error) {

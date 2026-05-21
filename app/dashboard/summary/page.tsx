@@ -51,8 +51,12 @@ export default function SummaryPage() {
   const [topItems, setTopItems] = useState<TopItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
-  const [exportFrom, setExportFrom] = useState("");
-  const [exportTo, setExportTo] = useState("");
+  const today = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const [exportFrom, setExportFrom] = useState(today);
+  const [exportTo, setExportTo] = useState(today);
 
   const fetchSummary = useCallback(async () => {
     try {

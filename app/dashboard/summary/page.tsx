@@ -107,6 +107,17 @@ export default function SummaryPage() {
   const maxItems = Math.max(...last7.map((d) => d.items), 1);
   const maxTopQty = Math.max(...topItems.map((i) => i.qty), 1);
 
+  // Convert the YYYY-MM-DD filter to the DD/MM/YYYY (Buddhist) string used
+  // in summary[].date so the daily breakdown table can match.
+  const thaiSelected = (() => {
+    if (!topDate) return "";
+    const [y, m, d] = topDate.split("-");
+    return `${d}/${m}/${parseInt(y, 10) + 543}`;
+  })();
+  const visibleSummary = topDate
+    ? summary.filter((s) => s.date === thaiSelected)
+    : summary;
+
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
@@ -153,6 +164,39 @@ export default function SummaryPage() {
             {exportFrom && exportTo ? `ช่วง ${exportFrom} ถึง ${exportTo}` : exportFrom ? `ตั้งแต่ ${exportFrom}` : `ถึง ${exportTo}`}
           </p>
         )}
+      </div>
+
+      {/* Date Filter — affects daily sections (Top items, Ironers, Daily table) */}
+      <div className="card mb-6">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[180px]">
+            <label className="block text-xs text-slate-500 mb-1">ดูข้อมูลของวันที่</label>
+            <input
+              type="date"
+              value={topDate}
+              onChange={(e) => setTopDate(e.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTopDate(today)}
+              className="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              วันนี้
+            </button>
+            <button
+              onClick={() => setTopDate("")}
+              className="px-3 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50"
+            >
+              90 วันล่าสุด
+            </button>
+          </div>
+        </div>
+        <p className="text-[11px] text-slate-400 mt-2">
+          ฟิลเตอร์นี้ใช้กับ: รายการยอดนิยม, สรุปคนรีด, ตารางสรุปรายวัน
+          {topDate ? "" : " (ปัจจุบันแสดง 90 วันล่าสุด)"}
+        </p>
       </div>
 
       {/* Summary Cards */}
@@ -233,27 +277,9 @@ export default function SummaryPage() {
       <div className="card mb-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="text-sm font-semibold text-slate-700">รายการยอดนิยม</h3>
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-slate-500">วันที่</label>
-            <input
-              type="date"
-              value={topDate}
-              onChange={(e) => setTopDate(e.target.value)}
-              className="px-2 py-1 rounded-lg border border-slate-300 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-            <button
-              onClick={() => setTopDate(today)}
-              className="text-xs px-2 py-1 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50"
-            >
-              วันนี้
-            </button>
-            <button
-              onClick={() => setTopDate("")}
-              className="text-xs px-2 py-1 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50"
-            >
-              90 วัน
-            </button>
-          </div>
+          <span className="text-[11px] text-slate-400">
+            {topDate ? `วันที่ ${thaiSelected}` : "90 วันล่าสุด"}
+          </span>
         </div>
 
         {topItems.length === 0 ? (
@@ -398,12 +424,14 @@ export default function SummaryPage() {
                 <tr>
                   <td colSpan={6} className="text-center py-8 text-slate-400">กำลังโหลด...</td>
                 </tr>
-              ) : summary.length === 0 ? (
+              ) : visibleSummary.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-8 text-slate-400">ยังไม่มีข้อมูล</td>
+                  <td colSpan={6} className="text-center py-8 text-slate-400">
+                    {topDate ? `ไม่มีข้อมูลในวันที่ ${thaiSelected}` : "ยังไม่มีข้อมูล"}
+                  </td>
                 </tr>
               ) : (
-                summary.map((row) => (
+                visibleSummary.map((row) => (
                   <>
                     <tr key={row.date}>
                       <td className="font-medium">{row.date}</td>

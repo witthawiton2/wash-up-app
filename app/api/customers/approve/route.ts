@@ -20,9 +20,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (type === "renew") {
-      // Renew: add remaining on top of current + extend endDate
+      // Renew: add new package items on top of the current balance, keeping
+      // any negative balance so customers who overdrew their previous
+      // package still owe those items (e.g. -10 + 50 = 40, not 50).
       const addItems = pkgData?.totalItems || 0;
-      const currentRemaining = Math.max(customer.remaining, 0);
+      const currentRemaining = customer.remaining;
       const baseDate = customer.endDate && customer.endDate > new Date()
         ? customer.endDate
         : new Date();

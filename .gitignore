@@ -6,3 +6,5 @@ node_modules
 *.tsbuildinfo
 backups/
 .env.example
+# Local Claude Code state
+.claude/

@@ -35,7 +35,7 @@ export default function IroningPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch("/api/orders?status=รอซักรีด&days=30");
+      const res = await fetch("/api/orders?status=รอซักรีด,พร้อมส่ง&days=30");
       if (res.ok) {
         const data = await res.json();
         setOrders(data);
@@ -65,9 +65,9 @@ export default function IroningPage() {
   usePolling(fetchOrders, 30000);
 
   const filtered = (() => {
-    let list = orders.filter(
-      (o) => o.status === "รอซักรีด" && !(o.note || "").includes(IRONED_TAG)
-    );
+    // Show every order that hasn't been ironed yet, regardless of whether
+    // the laundry side has already flipped it to "พร้อมส่ง".
+    let list = orders.filter((o) => !(o.note || "").includes(IRONED_TAG));
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       list = list.filter((o) =>
@@ -139,10 +139,15 @@ export default function IroningPage() {
             return (
               <div key={o.orderId} className="card">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-3">
-                  <div>
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <div className="min-w-0 flex-1">
                     <span className="font-bold text-blue-600 text-lg">{o.orderId}</span>
                     <span className="ml-2 text-slate-600">{o.customer}</span>
+                    {o.status === "พร้อมส่ง" && (
+                      <span className="ml-2 inline-block text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                        พร้อมส่งแล้ว — ยังไม่ได้รีด
+                      </span>
+                    )}
                   </div>
                   <span className="text-xs text-slate-500 whitespace-nowrap">
                     {o.items.length} รายการ ({totalPieces} ชิ้น)

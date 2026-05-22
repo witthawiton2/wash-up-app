@@ -2,10 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    // The user management dashboard needs to see inactive users too (toggle
+    // them on/off), so default is "include all". Pass ?activeOnly=1 to
+    // restrict to active accounts (used by staff-picker dropdowns).
+    const activeOnly = searchParams.get("activeOnly") === "1";
+    const limitParam = searchParams.get("limit");
+
+    const where = activeOnly ? { active: true } : {};
+    const take = limitParam
+      ? Math.min(parseInt(limitParam, 10) || 200, 1000)
+      : 200;
+
     const users = await prisma.user.findMany({
+      where,
       orderBy: { createdAt: "desc" },
+      take,
       select: {
         id: true,
         username: true,

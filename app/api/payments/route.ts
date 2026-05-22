@@ -22,12 +22,31 @@ export async function GET(request: NextRequest) {
       }
     } else {
       where.paymentStatus = { not: "paid" };
+      // Bound non-paid view to the last 60 days so the list doesn't grow
+      // forever with stale orders.
+      const from = new Date();
+      from.setDate(from.getDate() - 60);
+      where.createdAt = { gte: from };
     }
 
     const orders = await prisma.order.findMany({
       where,
-      include: { customer: true, items: true },
       orderBy: statusParam === "paid" ? { paidAt: "desc" } : { createdAt: "desc" },
+      take: 500,
+      select: {
+        orderId: true,
+        totalAmount: true,
+        paymentSlipUrl: true,
+        paymentStatus: true,
+        paidAt: true,
+        orderDate: true,
+        status: true,
+        walkInName: true,
+        customer: {
+          select: { customerCode: true, name: true, phone: true, lineUserId: true },
+        },
+        items: { select: { itemName: true, quantity: true, price: true } },
+      },
     });
 
     const payments = orders.map((o) => ({

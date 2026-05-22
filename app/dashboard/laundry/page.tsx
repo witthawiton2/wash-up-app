@@ -147,7 +147,7 @@ export default function LaundryPage() {
   }, []);
 
   useEffect(() => {
-    Promise.all([fetchOrders(), fetchCustomers(), fetchServiceItems()]);
+    void Promise.all([fetchOrders(), fetchCustomers(), fetchServiceItems()]);
   }, [fetchOrders, fetchCustomers, fetchServiceItems]);
 
   usePolling(fetchOrders, 30000);

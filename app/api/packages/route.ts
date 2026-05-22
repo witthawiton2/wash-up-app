@@ -7,7 +7,12 @@ export async function GET() {
       where: { active: true },
       orderBy: { price: "asc" },
     });
-    return NextResponse.json(packages);
+    // Package list rarely changes — cache for a minute with SWR.
+    return NextResponse.json(packages, {
+      headers: {
+        "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch packages:", error);
     return NextResponse.json(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 
 interface ItemBreakdown {
   name: string;
@@ -109,14 +109,24 @@ export default function SummaryPage() {
 
   // Convert the YYYY-MM-DD filter to the DD/MM/YYYY (Buddhist) string used
   // in summary[].date so the daily breakdown table can match.
-  const thaiSelected = (() => {
+  const thaiSelected = useMemo(() => {
     if (!topDate) return "";
     const [y, m, d] = topDate.split("-");
     return `${d}/${m}/${parseInt(y, 10) + 543}`;
-  })();
-  const visibleSummary = topDate
-    ? summary.filter((s) => s.date === thaiSelected)
-    : summary;
+  }, [topDate]);
+
+  const visibleSummary = useMemo(
+    () => (topDate ? summary.filter((s) => s.date === thaiSelected) : summary),
+    [summary, topDate, thaiSelected]
+  );
+
+  // Pre-group top items by category once per topItems change.
+  const topItemsByCategory = useMemo(() => {
+    return topItems.reduce((acc, item) => {
+      (acc[item.category] ||= []).push(item);
+      return acc;
+    }, {} as Record<string, TopItem[]>);
+  }, [topItems]);
 
   return (
     <div>
@@ -286,12 +296,7 @@ export default function SummaryPage() {
           <p className="text-center text-slate-400 text-sm py-4">ยังไม่มีข้อมูล</p>
         ) : (
           <div className="space-y-5">
-            {Object.entries(
-              topItems.reduce((acc, item) => {
-                (acc[item.category] ||= []).push(item);
-                return acc;
-              }, {} as Record<string, TopItem[]>)
-            ).map(([category, items]) => (
+            {Object.entries(topItemsByCategory).map(([category, items]) => (
               <div key={category}>
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full">

@@ -7,7 +7,14 @@ export async function GET() {
       where: { active: true },
       orderBy: { name: "asc" },
     });
-    return NextResponse.json(items);
+    // Catalog rarely changes — let the browser + edge cache for a minute,
+    // and serve stale for up to 5 minutes while revalidating in the
+    // background. POST/PUT/DELETE here return fresh responses anyway.
+    return NextResponse.json(items, {
+      headers: {
+        "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+      },
+    });
   } catch (error) {
     console.error("Failed to fetch service items:", error);
     return NextResponse.json(

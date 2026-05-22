@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatTime } from "@/lib/timezone";
 
@@ -15,12 +15,44 @@ function reformatNoteDate(iso: string): string {
   return `${d}/${m}/${buddhist}`;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const daysParam = searchParams.get("days");
+    const limitParam = searchParams.get("limit");
+
+    const where: Record<string, unknown> = {
+      requestedDeliveryDate: { not: null },
+    };
+    const days = daysParam ? parseInt(daysParam, 10) : 60;
+    if (!isNaN(days) && days > 0) {
+      // Window: include past 14d (history) and the next N days (upcoming).
+      const from = new Date();
+      from.setDate(from.getDate() - 14);
+      const to = new Date();
+      to.setDate(to.getDate() + days);
+      where.requestedDeliveryDate = { gte: from, lte: to };
+    }
+    const take = limitParam
+      ? Math.min(parseInt(limitParam, 10) || 500, 2000)
+      : 500;
+
     const orders = await prisma.order.findMany({
-      where: { requestedDeliveryDate: { not: null } },
-      include: { customer: true, items: true },
+      where,
       orderBy: { requestedDeliveryDate: "asc" },
+      take,
+      select: {
+        orderId: true,
+        status: true,
+        note: true,
+        orderDate: true,
+        requestedDeliveryDate: true,
+        walkInName: true,
+        customer: {
+          select: { name: true, phone: true, address: true, customerCode: true },
+        },
+        items: { select: { itemName: true, quantity: true } },
+      },
     });
 
     const bookings = orders.map((o) => {

@@ -11,15 +11,31 @@ export async function GET(request: NextRequest) {
 
     const customer = await prisma.customer.findUnique({
       where: { lineUserId },
+      select: { id: true },
     });
     if (!customer) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 
+    // Customer portal shows recent activity, not full lifetime history.
+    const from = new Date();
+    from.setDate(from.getDate() - 60);
+
     const orders = await prisma.order.findMany({
-      where: { customerId: customer.id },
-      include: { items: true, delivery: true },
+      where: { customerId: customer.id, createdAt: { gte: from } },
       orderBy: { createdAt: "desc" },
+      take: 100,
+      select: {
+        orderId: true,
+        status: true,
+        totalAmount: true,
+        orderDate: true,
+        requestedDeliveryDate: true,
+        paymentStatus: true,
+        paymentSlipUrl: true,
+        items: { select: { itemName: true, quantity: true, price: true } },
+        delivery: { select: { status: true } },
+      },
     });
 
     const formatted = orders.map((o) => ({

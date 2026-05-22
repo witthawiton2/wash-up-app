@@ -2,10 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/timezone";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const statusParam = searchParams.get("status");
+    const limitParam = searchParams.get("limit");
+
+    const where: Record<string, unknown> = {};
+    if (statusParam) where.status = statusParam;
+
+    const take = limitParam
+      ? Math.min(parseInt(limitParam, 10) || 500, 2000)
+      : 500;
+
     const customers = await prisma.customer.findMany({
+      where,
       orderBy: { createdAt: "desc" },
+      take,
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        address: true,
+        package: true,
+        endDate: true,
+        remaining: true,
+        lineUserId: true,
+        customerCode: true,
+        status: true,
+        renewPending: true,
+        renewSlipUrl: true,
+      },
     });
 
     const formatted = customers.map((c) => ({
@@ -14,9 +41,7 @@ export async function GET() {
       phone: c.phone || "",
       address: c.address || "",
       package: c.package || "Basic",
-      endDate: c.endDate
-        ? formatDate(c.endDate)
-        : "",
+      endDate: c.endDate ? formatDate(c.endDate) : "",
       remaining: c.remaining,
       lineUserId: c.lineUserId || "",
       customerCode: c.customerCode || "",

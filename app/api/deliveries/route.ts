@@ -4,19 +4,40 @@ import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
 import { formatDate } from "@/lib/timezone";
 import { getBaseUrl } from "@/lib/base-url";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Fetch orders that are in delivery-related statuses
+    const { searchParams } = new URL(request.url);
+    const daysParam = searchParams.get("days");
+    const limitParam = searchParams.get("limit");
+
+    const where: Record<string, unknown> = {
+      status: { in: ["พร้อมส่ง", "กำลังจัดส่ง", "ส่งแล้ว"] },
+    };
+    const days = daysParam ? parseInt(daysParam, 10) : 30;
+    if (!isNaN(days) && days > 0) {
+      const from = new Date();
+      from.setDate(from.getDate() - days);
+      where.orderDate = { gte: from };
+    }
+    const take = limitParam
+      ? Math.min(parseInt(limitParam, 10) || 200, 1000)
+      : 200;
+
     const orders = await prisma.order.findMany({
-      where: {
-        status: { in: ["พร้อมส่ง", "กำลังจัดส่ง", "ส่งแล้ว"] },
-      },
-      include: {
-        customer: true,
-        delivery: true,
-        items: true,
-      },
+      where,
       orderBy: { updatedAt: "desc" },
+      take,
+      select: {
+        id: true,
+        orderId: true,
+        status: true,
+        totalAmount: true,
+        orderDate: true,
+        walkInName: true,
+        customer: { select: { name: true, phone: true, address: true } },
+        delivery: { select: { id: true, address: true, photoUrl: true } },
+        items: { select: { itemName: true, quantity: true, price: true } },
+      },
     });
 
     const deliveries = orders.map((o) => ({

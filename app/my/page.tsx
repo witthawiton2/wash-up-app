@@ -195,7 +195,7 @@ interface MyOrder {
   requestedDeliveryDate: string | null;
   paymentStatus: string;
   paymentSlipUrl: string | null;
-  deliveryPhotoUrl: string | null;
+  deliveryPhotos: string[];
 }
 
 interface PackageOption {
@@ -255,7 +255,7 @@ export default function MyPage() {
   const [bookingDeliveryMethod, setBookingDeliveryMethod] = useState<"" | "self" | "home">("");
 
   // Delivery photo viewer
-  const [photoViewUrl, setPhotoViewUrl] = useState<string | null>(null);
+  const [photoViewUrls, setPhotoViewUrls] = useState<string[] | null>(null);
 
   // Payment slip upload
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
@@ -655,9 +655,9 @@ export default function MyPage() {
                         <span>{s.booked_for} {o.requestedDeliveryDate}</span>
                       </div>
                     )}
-                    {o.deliveryPhotoUrl && (
+                    {o.deliveryPhotos.length > 0 && (
                       <button
-                        onClick={() => setPhotoViewUrl(o.deliveryPhotoUrl)}
+                        onClick={() => setPhotoViewUrls(o.deliveryPhotos)}
                         className="mt-2 w-full flex items-center justify-center gap-2 text-xs text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 transition-colors"
                       >
                         <span>📷</span>
@@ -1026,20 +1026,24 @@ export default function MyPage() {
       </div>
 
       {/* Delivery Photo Viewer */}
-      {photoViewUrl && (
+      {photoViewUrls && photoViewUrls.length > 0 && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={() => setPhotoViewUrl(null)}
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto"
+          onClick={() => setPhotoViewUrls(null)}
         >
-          <div className="relative max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+          <div className="relative max-w-md w-full my-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3 text-white">
               <h3 className="text-base font-bold">{s.delivery_photo_title}</h3>
-              <button onClick={() => setPhotoViewUrl(null)} className="text-white/80 hover:text-white text-2xl leading-none">✕</button>
+              <button onClick={() => setPhotoViewUrls(null)} className="text-white/80 hover:text-white text-2xl leading-none">✕</button>
             </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={photoViewUrl} alt="delivery" className="w-full max-h-[75vh] object-contain rounded-xl bg-white" />
+            <div className="space-y-3">
+              {photoViewUrls.map((url, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={i} src={url} alt={`delivery ${i + 1}`} className="w-full max-h-[75vh] object-contain rounded-xl bg-white" />
+              ))}
+            </div>
             <button
-              onClick={() => setPhotoViewUrl(null)}
+              onClick={() => setPhotoViewUrls(null)}
               className="mt-3 w-full py-2.5 rounded-xl bg-white/90 text-sm font-medium text-slate-700 hover:bg-white"
             >
               {s.close}

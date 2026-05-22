@@ -49,6 +49,19 @@ export async function GET(request: NextRequest) {
       : [];
     const nameEnMap = new Map(services.map((s) => [s.name, s.nameEn]));
 
+    // Delivery.photoUrl is stored as a JSON-stringified array of URLs
+    // (see /dashboard/delivery uploader). Parse defensively in case of
+    // legacy single-URL strings.
+    const parsePhotos = (raw: string | null): string[] => {
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter((u) => typeof u === "string") : [raw];
+      } catch {
+        return [raw];
+      }
+    };
+
     const formatted = orders.map((o) => ({
       orderId: o.orderId,
       items: o.items.map((i) => ({
@@ -64,7 +77,7 @@ export async function GET(request: NextRequest) {
         ? formatDate(o.requestedDeliveryDate)
         : null,
       deliveryStatus: o.delivery?.status || null,
-      deliveryPhotoUrl: o.delivery?.photoUrl || null,
+      deliveryPhotos: parsePhotos(o.delivery?.photoUrl || null),
       paymentStatus: o.paymentStatus,
       paymentSlipUrl: o.paymentSlipUrl,
     }));

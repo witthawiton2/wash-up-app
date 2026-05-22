@@ -99,11 +99,42 @@ export async function POST(request: NextRequest) {
     ) + hBought * 5;
     const totalAmount = disc > 0 ? parseFloat((subtotal * (1 - disc / 100)).toFixed(2)) : subtotal;
 
-    // Calculate package deduction
+    // Run the order insert and the package-deduction lookup in parallel.
+    // For walk-in orders skip the lookup entirely — no package to deduct.
     const itemNames = items.map((i: { name: string }) => i.name);
-    const serviceItems = await prisma.serviceItem.findMany({
-      where: { name: { in: itemNames }, inPackage: true, active: true },
-    });
+    const [serviceItems, order] = await Promise.all([
+      customerId
+        ? prisma.serviceItem.findMany({
+            where: { name: { in: itemNames }, inPackage: true, active: true },
+          })
+        : Promise.resolve([] as { name: string; packageDeduction: number }[]),
+      prisma.order.create({
+        data: {
+          orderId,
+          customerId: customerId || null,
+          walkInName: customerId ? null : (walkInName || null),
+          status: "รอซักรีด",
+          totalAmount,
+          hangersOwned: hangersOwned || 0,
+          hangersBought: hBought,
+          discount: disc,
+          checkPhotos: checkPhotos || null,
+          note: note || null,
+          items: {
+            create: items.map(
+              (i: { name: string; qty: number; price: number }) => ({
+                itemName: i.name,
+                quantity: i.qty,
+                price: i.price,
+                total: i.qty * i.price,
+              })
+            ),
+          },
+        },
+        include: { customer: true, items: true },
+      }),
+    ]);
+
     const serviceMap = new Map(serviceItems.map((s) => [s.name, s.packageDeduction]));
 
     let totalDeduction = 0;
@@ -113,32 +144,6 @@ export async function POST(request: NextRequest) {
         totalDeduction += item.qty * deduction;
       }
     }
-
-    const order = await prisma.order.create({
-      data: {
-        orderId,
-        customerId: customerId || null,
-        walkInName: customerId ? null : (walkInName || null),
-        status: "รอซักรีด",
-        totalAmount,
-        hangersOwned: hangersOwned || 0,
-        hangersBought: hBought,
-        discount: disc,
-        checkPhotos: checkPhotos || null,
-        note: note || null,
-        items: {
-          create: items.map(
-            (i: { name: string; qty: number; price: number }) => ({
-              itemName: i.name,
-              quantity: i.qty,
-              price: i.price,
-              total: i.qty * i.price,
-            })
-          ),
-        },
-      },
-      include: { customer: true, items: true },
-    });
 
     // Deduct from customer's package remaining
     if (totalDeduction > 0) {
@@ -156,21 +161,23 @@ export async function POST(request: NextRequest) {
         });
         const pkgPrice = pkgData?.price || 0;
 
-        // Add package price to this order's totalAmount
-        if (pkgPrice > 0) {
-          await prisma.order.update({
-            where: { orderId },
-            data: {
-              totalAmount: { increment: pkgPrice },
-              note: (order.note ? order.note + " | " : "") + `ค่าต่อแพ็คเกจ ${updatedCustomer.package} ${pkgPrice}฿`,
-            },
-          });
-        }
-
-        await prisma.customer.update({
-          where: { id: customerId },
-          data: { renewPending: true },
-        });
+        // Add package price to this order's totalAmount + flip renewPending
+        // — run both writes in parallel since they touch different rows.
+        await Promise.all([
+          pkgPrice > 0
+            ? prisma.order.update({
+                where: { orderId },
+                data: {
+                  totalAmount: { increment: pkgPrice },
+                  note: (order.note ? order.note + " | " : "") + `ค่าต่อแพ็คเกจ ${updatedCustomer.package} ${pkgPrice}฿`,
+                },
+              })
+            : Promise.resolve(),
+          prisma.customer.update({
+            where: { id: customerId },
+            data: { renewPending: true },
+          }),
+        ]);
       }
 
       if (updatedCustomer.lineUserId) {
@@ -264,10 +271,17 @@ export async function PUT(request: NextRequest) {
       const totalAmount = disc > 0 ? parseFloat((subtotal * (1 - disc / 100)).toFixed(2)) : subtotal;
       updateData.totalAmount = totalAmount;
 
-      const order = await prisma.order.findUnique({
-        where: { orderId },
-        include: { items: true },
-      });
+      // Fetch the order (with items) and the package serviceItems lookup
+      // in parallel — they're independent reads.
+      const [order, serviceItems] = await Promise.all([
+        prisma.order.findUnique({
+          where: { orderId },
+          include: { items: true },
+        }),
+        prisma.serviceItem.findMany({
+          where: { inPackage: true, active: true },
+        }),
+      ]);
       if (!order) {
         return NextResponse.json(
           { error: "Order not found" },
@@ -275,17 +289,7 @@ export async function PUT(request: NextRequest) {
         );
       }
 
-      // Calculate old deduction
-      const allItemNames = [
-        ...order.items.map((i) => i.itemName),
-        ...items.map((i: { name: string }) => i.name),
-      ];
-      const serviceItems = await prisma.serviceItem.findMany({
-        where: { name: { in: allItemNames }, inPackage: true, active: true },
-      });
-      const svcMap = new Map(
-        serviceItems.map((s) => [s.name, s.packageDeduction])
-      );
+      const svcMap = new Map(serviceItems.map((s) => [s.name, s.packageDeduction]));
 
       let oldDeduction = 0;
       for (const item of order.items) {
@@ -301,13 +305,14 @@ export async function PUT(request: NextRequest) {
 
       const diff = newDeduction - oldDeduction;
 
-      // Delete old items and create new ones
-      await prisma.orderItem.deleteMany({ where: { orderId: order.id } });
+      // Replace items + update order in a single round-trip using nested
+      // deleteMany + create.
       await prisma.order.update({
         where: { orderId },
         data: {
           ...updateData,
           items: {
+            deleteMany: {},
             create: items.map(
               (i: { name: string; qty: number; price: number }) => ({
                 itemName: i.name,

@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyAdminLine } from "@/lib/notify-admin";
 
+function isValidSlipUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "https:") return false;
+    // Match against the configured Supabase project — covers
+    // <project>.supabase.co and any custom storage hostname set via env.
+    const supabaseHost = process.env.SUPABASE_URL
+      ? new URL(process.env.SUPABASE_URL).hostname
+      : null;
+    if (supabaseHost && u.hostname === supabaseHost) return true;
+    if (u.hostname.endsWith(".supabase.co")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -10,6 +27,16 @@ export async function POST(request: NextRequest) {
     if (!lineUserId || !orderId || !slipUrl) {
       return NextResponse.json(
         { error: "lineUserId, orderId, and slipUrl are required" },
+        { status: 400 }
+      );
+    }
+
+    // Only accept slip URLs we ourselves issued (Supabase storage bucket
+    // configured in SUPABASE_URL). Stops clients from pointing the field
+    // at arbitrary external images.
+    if (!isValidSlipUrl(slipUrl)) {
+      return NextResponse.json(
+        { error: "Invalid slip URL" },
         { status: 400 }
       );
     }

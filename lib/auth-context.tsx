@@ -31,26 +31,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("washup_user");
-    if (stored) {
-      setUser(JSON.parse(stored));
-    }
-    setIsLoading(false);
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : { user: null }))
+      .then((data) => setUser(data.user))
+      .catch(() => setUser(null))
+      .finally(() => setIsLoading(false));
   }, []);
 
   const login = useCallback(
     (userData: AuthUser) => {
+      // The session cookie was set by /api/auth/login. Mirror the user
+      // into context so the UI updates without an extra /me round-trip.
       setUser(userData);
-      sessionStorage.setItem("washup_user", JSON.stringify(userData));
       router.push("/dashboard");
     },
     [router]
   );
 
   const logout = useCallback(() => {
-    setUser(null);
-    sessionStorage.removeItem("washup_user");
-    router.push("/login");
+    fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+      .catch(() => {})
+      .finally(() => {
+        setUser(null);
+        router.push("/login");
+      });
   }, [router]);
 
   return (

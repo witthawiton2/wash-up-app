@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { generatePromptPayQR } from "@/lib/promptpay-qr";
 import { formatDateTime, formatDate } from "@/lib/timezone";
 import { LOGO_DATA_URI } from "@/lib/logo-data";
+import { hmacVerify } from "@/lib/session";
+import { getSession } from "@/lib/api-auth";
 
 export const runtime = "nodejs";
 
@@ -32,6 +34,19 @@ export async function GET(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   const { orderId } = await params;
+
+  // Auth: accept either a valid HMAC signature in the URL (used by LINE
+  // when delivering receipts) or a logged-in staff session (dashboard).
+  const sig = request.nextUrl.searchParams.get("sig");
+  const sigOk = sig ? await hmacVerify(`receipt:${orderId}`, sig) : false;
+  const session = sigOk ? null : await getSession(request);
+  if (!sigOk && !session) {
+    return new Response(
+      JSON.stringify({ error: "Unauthorized" }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
   try {
   let logoSrc: string = LOGO_DATA_URI;
   try {

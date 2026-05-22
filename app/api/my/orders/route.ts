@@ -34,14 +34,26 @@ export async function GET(request: NextRequest) {
         paymentStatus: true,
         paymentSlipUrl: true,
         items: { select: { itemName: true, quantity: true, price: true } },
-        delivery: { select: { status: true } },
+        delivery: { select: { status: true, photoUrl: true } },
       },
     });
+
+    const itemNames = Array.from(
+      new Set(orders.flatMap((o) => o.items.map((i) => i.itemName)))
+    );
+    const services = itemNames.length
+      ? await prisma.serviceItem.findMany({
+          where: { name: { in: itemNames } },
+          select: { name: true, nameEn: true },
+        })
+      : [];
+    const nameEnMap = new Map(services.map((s) => [s.name, s.nameEn]));
 
     const formatted = orders.map((o) => ({
       orderId: o.orderId,
       items: o.items.map((i) => ({
         name: i.itemName,
+        nameEn: nameEnMap.get(i.itemName) || null,
         qty: i.quantity,
         price: i.price,
       })),
@@ -52,6 +64,7 @@ export async function GET(request: NextRequest) {
         ? formatDate(o.requestedDeliveryDate)
         : null,
       deliveryStatus: o.delivery?.status || null,
+      deliveryPhotoUrl: o.delivery?.photoUrl || null,
       paymentStatus: o.paymentStatus,
       paymentSlipUrl: o.paymentSlipUrl,
     }));

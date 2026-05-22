@@ -8,6 +8,7 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "seed": "npx tsx prisma/seed.ts",
+    "backfill:name-en": "npx tsx scripts/backfill-service-name-en.ts",
     "backup": "./scripts/backup.sh"
   },
   "prisma": {

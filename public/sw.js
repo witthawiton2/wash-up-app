@@ -31,6 +31,42 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Push - show notification when the server pushes payload
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  let data = {};
+  try {
+    data = event.data.json();
+  } catch (e) {
+    data = { title: 'Wash Up', body: event.data.text() };
+  }
+  const title = data.title || 'Wash Up';
+  const options = {
+    body: data.body || '',
+    icon: data.icon || '/icons/icon-192x192.png',
+    badge: '/icons/icon-192x192.png',
+    data: { url: data.url || '/my' },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/my';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((winList) => {
+      // Focus an existing tab if it points at the same origin.
+      for (const client of winList) {
+        if ('focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
+  );
+});
+
 // Fetch - network first, cache fallback
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;

@@ -17,6 +17,8 @@ import {
   Wallet,
   UserCog,
   BarChart3,
+  Boxes,
+  Receipt,
   Settings as SettingsIcon,
   Moon,
   Globe,
@@ -38,11 +40,13 @@ const menuItems: MenuItem[] = [
   { href: "/dashboard/laundry", label: "Laundry", icon: Shirt, roles: ["admin", "staff"] },
   { href: "/dashboard/ironing", label: "Ironing", icon: Flame, roles: ["admin", "staff", "ironer"] },
   { href: "/dashboard/services", label: "รายการสินค้า", icon: ClipboardList, roles: ["admin", "staff"] },
+  { href: "/dashboard/stock", label: "สต็อก", icon: Boxes, roles: ["admin", "staff"] },
   { href: "/dashboard/packages", label: "แพ็คเกจ", icon: Package, roles: ["admin"] },
   { href: "/dashboard/bookings", label: "การจอง", icon: CalendarCheck, roles: ["admin", "staff"] },
   { href: "/dashboard/payments", label: "การชำระ", icon: Wallet, roles: ["admin", "staff"] },
   { href: "/dashboard/users", label: "User", icon: UserCog, roles: ["admin"] },
   { href: "/dashboard/summary", label: "Summary", icon: BarChart3, roles: ["admin"] },
+  { href: "/dashboard/reports/eod", label: "สรุปยอดวัน", icon: Receipt, roles: ["admin", "staff"] },
   { href: "/dashboard/settings", label: "ตั้งค่า", icon: SettingsIcon, roles: ["admin"] },
 ];
 
@@ -76,6 +80,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           "/dashboard/customer": data.pendingCustomers + data.renewPending,
           "/dashboard/bookings": data.todayBookings,
           "/dashboard/laundry": data.pendingOrders,
+          "/dashboard/stock": data.lowStockCount || 0,
         });
       }
     } catch { /* ignore */ }

@@ -44,6 +44,7 @@ export default function CustomerPage() {
   const [activeTab, setActiveTab] = useState("ทั้งหมด");
   const [searchQuery, setSearchQuery] = useState("");
   const [saving, setSaving] = useState(false);
+  const [phoneMatches, setPhoneMatches] = useState<Customer[] | null>(null);
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -76,6 +77,26 @@ export default function CustomerPage() {
   }, [fetchCustomers, fetchPackages]);
 
   usePolling(fetchCustomers, 30000);
+
+  // Server-side phone lookup. Triggers only when the query looks like a phone
+  // (>=4 digits, mostly numeric) so we can find customers outside the loaded
+  // page slice without slowing down free-text typing.
+  useEffect(() => {
+    const q = searchQuery.trim();
+    const digits = q.replace(/\D/g, "");
+    const looksLikePhone = digits.length >= 4 && digits.length / q.length >= 0.6;
+    if (!looksLikePhone) {
+      setPhoneMatches(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/customers?phone=${encodeURIComponent(digits)}`);
+        if (res.ok) setPhoneMatches((await res.json()) as Customer[]);
+      } catch { /* ignore */ }
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
 
   const openAdd = () => {
     setEditing({ ...emptyCustomer });
@@ -192,10 +213,13 @@ export default function CustomerPage() {
   ];
 
   const filteredCustomers = (() => {
+    // Server-side phone matches override the loaded page slice so we can find
+    // any customer in the DB without paginating through it.
+    const source = phoneMatches ?? customers;
     let list = activeTab === "รอยืนยัน"
-      ? customers.filter((c) => c.status === "pending" || c.renewPending)
-      : customers;
-    if (searchQuery.trim()) {
+      ? source.filter((c) => c.status === "pending" || c.renewPending)
+      : source;
+    if (searchQuery.trim() && !phoneMatches) {
       const q = searchQuery.toLowerCase();
       list = list.filter((c) =>
         (c.customerCode || "").toLowerCase().includes(q) ||

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
 import { formatDate } from "@/lib/timezone";
-import { getBaseUrl } from "@/lib/base-url";
 import { parseDeliveryPhotos } from "@/lib/delivery-photos";
+import { sendCustomerPush } from "@/lib/push";
 
 export async function GET(request: NextRequest) {
   try {
@@ -126,13 +126,16 @@ export async function PUT(request: NextRequest) {
 
     // Send LINE notification based on status change
     if (order.customer?.lineUserId) {
-      const baseUrl = getBaseUrl();
-
       if (status === "กำลังจัดส่ง") {
         const message = `🚚 กำลังจัดส่งครับ!\n\nออเดอร์: ${orderId}\nกำลังเดินทางไปส่งที่ ${order.customer?.address || "ที่อยู่ลูกค้า"}\n\nรอสักครู่นะครับ 😊`;
         pushTextMessage(order.customer.lineUserId, message).catch((err) =>
           console.error("Failed to send LINE delivery notification:", err)
         );
+        sendCustomerPush(order.customer.id, {
+          title: "กำลังจัดส่ง",
+          body: `ออเดอร์ ${orderId} กำลังเดินทางไปส่ง`,
+          url: `/my/orders/${orderId}`,
+        }).catch(() => {});
       }
 
       if (status === "ส่งแล้ว") {
@@ -151,6 +154,11 @@ export async function PUT(request: NextRequest) {
             console.error("Failed to send LINE delivered notification:", err)
           );
         }
+        sendCustomerPush(order.customer.id, {
+          title: "จัดส่งเรียบร้อย!",
+          body: `ออเดอร์ ${orderId} ส่งถึงแล้ว ขอบคุณที่ใช้บริการ 🙏`,
+          url: `/my/orders/${orderId}`,
+        }).catch(() => {});
       }
     }
 

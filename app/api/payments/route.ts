@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage } from "@/lib/line-api";
 import { formatDateTime } from "@/lib/timezone";
+import { sendCustomerPush } from "@/lib/push";
 
 export async function GET(request: NextRequest) {
   try {
@@ -72,10 +73,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const ALLOWED_METHODS = new Set(["cash", "qr_promptpay", "bank_transfer", "other"]);
+
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderId, action } = body; // action: "confirm" | "reject"
+    const { orderId, action, method } = body; // action: "confirm" | "reject"
 
     if (!orderId) {
       return NextResponse.json({ error: "orderId required" }, { status: 400 });
@@ -88,9 +91,10 @@ export async function PUT(request: NextRequest) {
     if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
 
     if (action === "confirm") {
+      const safeMethod = ALLOWED_METHODS.has(method) ? method : "cash";
       await prisma.order.update({
         where: { orderId },
-        data: { paymentStatus: "paid", paidAt: new Date() },
+        data: { paymentStatus: "paid", paidAt: new Date(), paymentMethod: safeMethod },
       });
 
       if (order.customer?.lineUserId) {
@@ -98,6 +102,13 @@ export async function PUT(request: NextRequest) {
           order.customer.lineUserId,
           `✅ ยืนยันการชำระเงินแล้ว!\n\nออเดอร์: ${orderId}\nยอด: ${order.totalAmount.toLocaleString()}฿\n\nขอบคุณที่ใช้บริการครับ 🙏`
         ).catch(() => {});
+      }
+      if (order.customer?.id) {
+        sendCustomerPush(order.customer.id, {
+          title: "ยืนยันการชำระแล้ว ✅",
+          body: `ออเดอร์ ${orderId} — ${order.totalAmount.toLocaleString()}฿`,
+          url: `/my/orders/${orderId}`,
+        }).catch(() => {});
       }
     } else if (action === "reject") {
       await prisma.order.update({
@@ -110,6 +121,13 @@ export async function PUT(request: NextRequest) {
           order.customer.lineUserId,
           `❌ สลิปไม่ถูกต้อง\n\nออเดอร์: ${orderId}\n\nกรุณาส่งสลิปการชำระเงินใหม่อีกครั้งครับ`
         ).catch(() => {});
+      }
+      if (order.customer?.id) {
+        sendCustomerPush(order.customer.id, {
+          title: "สลิปไม่ผ่าน",
+          body: `กรุณาส่งสลิปการชำระใหม่สำหรับออเดอร์ ${orderId}`,
+          url: `/my/orders/${orderId}`,
+        }).catch(() => {});
       }
     }
 

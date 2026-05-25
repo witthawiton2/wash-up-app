@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
 import { formatDateTime } from "@/lib/timezone";
 import { getBaseUrl } from "@/lib/base-url";
+import { sendCustomerPush } from "@/lib/push";
 
 export async function GET(request: NextRequest) {
   try {
@@ -198,6 +199,11 @@ export async function POST(request: NextRequest) {
           pushTextMessage(updatedCustomer.lineUserId, message).catch((err) =>
             console.error("Failed to send LINE low-package alert:", err)
           );
+          sendCustomerPush(updatedCustomer.id, {
+            title: remaining <= 0 ? "แพ็กเกจหมดแล้ว" : `แพ็กเกจเหลือ ${remaining} ชิ้น`,
+            body: "เติมแพ็กเกจล่วงหน้าได้เลย",
+            url: "/my?tab=package",
+          }).catch(() => {});
         }
 
         // Alert: package expiring soon or expired
@@ -409,6 +415,11 @@ export async function PUT(request: NextRequest) {
         pushTextMessage(orderWithCustomer.customer.lineUserId, message).catch(
           (err) => console.error("Failed to send LINE ready notification:", err)
         );
+        sendCustomerPush(orderWithCustomer.customer.id, {
+          title: "ซักเสร็จแล้ว!",
+          body: `ออเดอร์ ${orderId} พร้อมแล้ว — กดจองเวลานัดรับ-ส่ง`,
+          url: "/my?tab=booking",
+        }).catch(() => {});
       }
     }
 

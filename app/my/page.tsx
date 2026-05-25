@@ -5,7 +5,9 @@ import Link from "next/link";
 import { useSettings } from "@/lib/settings-context";
 import { useLang, type Lang } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api-client";
+import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 import LanguageToggle from "@/components/LanguageToggle";
+import { OrderCardSkeleton } from "@/components/Skeleton";
 import liff from "@line/liff";
 
 const STR: Record<Lang, Record<string, string>> = {
@@ -86,6 +88,10 @@ const STR: Record<Lang, Record<string, string>> = {
     view_delivery_photo: "ดูรูปจัดส่ง",
     delivery_photo_title: "รูปจัดส่ง",
     close: "ปิด",
+    push_optin_title: "🔔 รับการแจ้งเตือนแบบไม่ต้องใช้ LINE",
+    push_optin_body: "เปิดแจ้งเตือนบนเครื่องนี้ — รู้ทุกครั้งที่สถานะออเดอร์เปลี่ยน",
+    push_optin_enable: "เปิด",
+    push_optin_dismiss: "ไม่ใช่ตอนนี้",
     profile_title: "แก้ไขข้อมูลส่วนตัว",
     profile_name: "ชื่อ-นามสกุล",
     profile_phone: "เบอร์โทร",
@@ -173,6 +179,10 @@ const STR: Record<Lang, Record<string, string>> = {
     view_delivery_photo: "View delivery photo",
     delivery_photo_title: "Delivery photo",
     close: "Close",
+    push_optin_title: "🔔 Get push notifications without LINE",
+    push_optin_body: "Turn on notifications on this device to hear about order status changes",
+    push_optin_enable: "Enable",
+    push_optin_dismiss: "Not now",
     profile_title: "Edit profile",
     profile_name: "Full name",
     profile_phone: "Phone",
@@ -187,6 +197,17 @@ const STR: Record<Lang, Record<string, string>> = {
 
 const fmt = (str: string, vars: Record<string, string | number>) =>
   str.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
+
+// VAPID public key arrives as a URL-safe base64 string; pushManager.subscribe
+// needs it as a Uint8Array.
+function urlBase64ToUint8Array(base64: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
 
 interface CustomerInfo {
   id: number;
@@ -277,6 +298,10 @@ export default function MyPage() {
   // Delivery photo viewer
   const [photoViewUrls, setPhotoViewUrls] = useState<string[] | null>(null);
 
+  // PWA push opt-in banner
+  const [pushBannerVisible, setPushBannerVisible] = useState(false);
+  const [pushSubscribing, setPushSubscribing] = useState(false);
+
   // Profile editor
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -337,6 +362,62 @@ export default function MyPage() {
         setLoading(false);
       });
   }, []);
+
+  // Show the push opt-in banner only when the browser supports Web Push,
+  // permission hasn't been decided yet, and the user hasn't dismissed it.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (Notification.permission !== "default") return;
+    if (!process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) return;
+    if (localStorage.getItem("washup_push_dismissed")) return;
+    setPushBannerVisible(true);
+  }, []);
+
+  const dismissPushBanner = () => {
+    localStorage.setItem("washup_push_dismissed", "1");
+    setPushBannerVisible(false);
+  };
+
+  const subscribeToPush = async () => {
+    if (!lineUserId || pushSubscribing) return;
+    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidKey) return;
+    setPushSubscribing(true);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") {
+        dismissPushBanner();
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
+      });
+      await apiFetch("/api/my/push/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lineUserId,
+          subscription: sub.toJSON(),
+          userAgent: navigator.userAgent,
+        }),
+      });
+      setPushBannerVisible(false);
+    } catch (err) {
+      console.error("Push subscribe failed:", err);
+    } finally {
+      setPushSubscribing(false);
+    }
+  };
+
+  const { pullY, refreshing } = usePullToRefresh({
+    enabled: !loading && !!lineUserId,
+    onRefresh: async () => {
+      if (lineUserId) await loadData(lineUserId);
+    },
+  });
 
   const loadData = async (uid: string) => {
     try {
@@ -598,10 +679,29 @@ export default function MyPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(160deg, #0c1222, #1a2744, #2563eb)" }}>
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-300/30 border-t-white rounded-full animate-spin" />
-          <p className="text-white/80 text-sm">{s.loading}</p>
+      <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #f0f4ff 0%, #f8fafc 100%)" }}>
+        <div className="text-white px-4 pt-8 pb-24 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #0c1222 0%, #1a2744 40%, #2563eb 100%)" }}>
+          <div className="relative z-10 max-w-md mx-auto">
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 border border-white/10 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-white/20 animate-pulse" />
+                <div className="flex-1">
+                  <div className="h-3 w-32 bg-white/20 rounded animate-pulse mb-2" />
+                  <div className="h-2 w-20 bg-white/15 rounded animate-pulse" />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="h-16 bg-white/10 rounded-xl animate-pulse" />
+                <div className="h-16 bg-white/10 rounded-xl animate-pulse" />
+                <div className="h-16 bg-white/10 rounded-xl animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="px-4 -mt-4 space-y-3 relative z-10 max-w-md mx-auto">
+          <OrderCardSkeleton />
+          <OrderCardSkeleton />
+          <OrderCardSkeleton />
         </div>
       </div>
     );
@@ -628,6 +728,19 @@ export default function MyPage() {
 
   return (
     <div className="min-h-screen" style={{ background: "linear-gradient(180deg, #f0f4ff 0%, #f8fafc 100%)", paddingBottom: "calc(5.5rem + env(safe-area-inset-bottom))" }}>
+      {/* Pull-to-refresh indicator */}
+      {(pullY > 0 || refreshing) && (
+        <div
+          className="fixed top-2 left-0 right-0 flex justify-center z-50 pointer-events-none"
+          style={{ transform: `translateY(${Math.min(pullY, 60)}px)`, transition: refreshing ? "transform 200ms" : undefined }}
+        >
+          <div className="bg-white/95 backdrop-blur-sm shadow-md rounded-full px-3 py-1.5 flex items-center gap-2 text-xs text-slate-600">
+            <div className={`w-3 h-3 border-2 border-blue-300/40 border-t-blue-600 rounded-full ${refreshing ? "animate-spin" : ""}`} />
+            {refreshing ? s.loading : "↓"}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="text-white px-4 pt-8 pb-10 relative overflow-hidden" style={{ background: "linear-gradient(160deg, #0c1222 0%, #1a2744 40%, #2563eb 100%)" }}>
         {/* Decorative circles */}
@@ -692,6 +805,31 @@ export default function MyPage() {
         {/* Tab: Orders */}
         {activeTab === "orders" && (
           <div className="space-y-3">
+            {pushBannerVisible && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-blue-100 flex items-center gap-3">
+                <div className="text-2xl">🔔</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-800">{s.push_optin_title}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{s.push_optin_body}</p>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    onClick={subscribeToPush}
+                    disabled={pushSubscribing}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #2563eb, #6366f1)" }}
+                  >
+                    {s.push_optin_enable}
+                  </button>
+                  <button
+                    onClick={dismissPushBanner}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-50"
+                  >
+                    {s.push_optin_dismiss}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-1 h-5 rounded-full bg-blue-500" />

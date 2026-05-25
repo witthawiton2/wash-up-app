@@ -7,11 +7,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status");
     const limitParam = searchParams.get("limit");
+    const phoneParam = searchParams.get("phone");
 
     const where: Record<string, unknown> = {};
     if (statusParam) where.status = statusParam;
+    if (phoneParam && phoneParam.trim().length >= 3) {
+      where.phone = { contains: phoneParam.trim() };
+    }
 
-    const take = limitParam
+    const take = phoneParam
+      ? 20
+      : limitParam
       ? Math.min(parseInt(limitParam, 10) || 500, 2000)
       : 500;
 

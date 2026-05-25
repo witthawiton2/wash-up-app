@@ -38,6 +38,9 @@ model Customer {
   updatedAt  DateTime @updatedAt
   orders     Order[]
   payments   Payment[]
+  pushSubscriptions PushSubscription[]
+
+  @@index([phone])
 }
 
 model Order {
@@ -56,6 +59,7 @@ model Order {
   requestedDeliveryDate DateTime?
   paymentSlipUrl        String?
   paymentStatus         String   @default("unpaid") // unpaid, pending, paid
+  paymentMethod         String?  // cash | qr_promptpay | bank_transfer | other
   paidAt                DateTime?
   orderDate             DateTime @default(now())
   createdAt     DateTime @default(now())
@@ -138,12 +142,51 @@ model Payment {
   customer    Customer? @relation(fields: [customerId], references: [id])
   type        String   // "order" | "package_renew"
   amount      Float
+  method      String?  // cash | qr_promptpay | bank_transfer | other
   slipUrl     String?
   status      String   @default("pending") // pending, confirmed, rejected
   note        String?
   orderId     String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model Stock {
+  id           Int      @id @default(autoincrement())
+  category     String   // detergent | hangers | packaging | other
+  name         String
+  unit         String   @default("piece")
+  quantity     Float    @default(0)
+  reorderLevel Float    @default(0)
+  note         String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  movements    StockMovement[]
+}
+
+model StockMovement {
+  id        Int      @id @default(autoincrement())
+  stockId   Int
+  stock     Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  delta     Float    // +ve = restock, -ve = consume
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([stockId, createdAt])
+}
+
+model PushSubscription {
+  id         Int      @id @default(autoincrement())
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
 }
 
 model Settings {

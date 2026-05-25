@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { pushTextMessage } from "@/lib/line-api";
 import { notifyAdminNewBooking, notifyAdminLine } from "@/lib/notify-admin";
 import { apiError, getRequestLang } from "@/lib/api-i18n";
+import { sendCustomerPush } from "@/lib/push";
 
 // Strip any existing "จองคิว: ..." segment from a note so re-bookings or
 // cancellations don't leave stale booking text behind that the bookings
@@ -85,6 +86,11 @@ export async function POST(request: NextRequest) {
         `📅 จองคิวสำเร็จ!\n\n${activityLabels[activity] || activity}${orderId ? `\nออเดอร์: ${orderId}` : ""}\nวันที่: ${date}\nเวลา: ${time}${methodLabel ? `\nวิธี: ${methodLabel}` : ""}\n\nรอการยืนยันจากร้านครับ 😊`
       ).catch((err) => console.error("Failed to send booking LINE:", err));
     }
+    sendCustomerPush(customer.id, {
+      title: "จองคิวสำเร็จ!",
+      body: `${activityLabels[activity] || activity} ${date} ${time}`,
+      url: "/my?tab=booking",
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -137,6 +143,11 @@ export async function DELETE(request: NextRequest) {
       customer.lineUserId!,
       `❌ ยกเลิกคิวเรียบร้อย\n\nออเดอร์: ${orderId}\nหากต้องการจองใหม่ เข้าไปจองได้ที่หน้า "จองคิว" ครับ 😊`
     ).catch(() => {});
+    sendCustomerPush(customer.id, {
+      title: "ยกเลิกคิวแล้ว",
+      body: `ออเดอร์ ${orderId} — จองใหม่ได้ที่หน้าจองคิว`,
+      url: "/my?tab=booking",
+    }).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (error) {

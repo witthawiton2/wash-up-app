@@ -32,6 +32,7 @@ export default function PaymentsPage() {
   const [viewSlip, setViewSlip] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState<{ orderId: string; action: string } | null>(null);
+  const [confirmMethod, setConfirmMethod] = useState<string>("cash");
   const [dateFrom, setDateFrom] = useState<string>(firstOfMonthIso());
   const [dateTo, setDateTo] = useState<string>(todayIso());
 
@@ -64,7 +65,7 @@ export default function PaymentsPage() {
       const res = await fetch("/api/payments", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, action }),
+        body: JSON.stringify({ orderId, action, method: action === "confirm" ? confirmMethod : undefined }),
       });
       if (res.ok) {
         await fetchPayments();
@@ -260,6 +261,21 @@ export default function PaymentsPage() {
                 ? `ยืนยันการชำระเงินสำหรับออเดอร์ ${confirmTarget.orderId}?`
                 : `ปฏิเสธสลิปและให้ลูกค้าส่งใหม่?`}
             </p>
+            {confirmTarget.action === "confirm" && (
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-slate-500 mb-1">วิธีชำระ</label>
+                <select
+                  value={confirmMethod}
+                  onChange={(e) => setConfirmMethod(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="cash">เงินสด</option>
+                  <option value="qr_promptpay">QR PromptPay</option>
+                  <option value="bank_transfer">โอนธนาคาร</option>
+                  <option value="other">อื่นๆ</option>
+                </select>
+              </div>
+            )}
             <div className="flex gap-2">
               <button onClick={() => setConfirmTarget(null)} className="flex-1 py-2.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-600">
                 ยกเลิก

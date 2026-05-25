@@ -19,8 +19,14 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (isLoading) return;
+    if (!user) {
       router.push("/login");
+      return;
+    }
+    // Drivers get the mobile-first /driver view, not the admin dashboard.
+    if (user.role === "driver") {
+      router.replace("/driver");
     }
   }, [isLoading, user, router]);
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyAdminLine } from "@/lib/notify-admin";
+import { apiError, getRequestLang } from "@/lib/api-i18n";
 
 function isValidSlipUrl(url: string): boolean {
   try {
@@ -20,35 +21,30 @@ function isValidSlipUrl(url: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
+  const lang = getRequestLang(request);
   try {
     const body = await request.json();
     const { lineUserId, orderId, slipUrl } = body;
 
     if (!lineUserId || !orderId || !slipUrl) {
-      return NextResponse.json(
-        { error: "lineUserId, orderId, and slipUrl are required" },
-        { status: 400 }
-      );
+      return apiError(lang, "missing_fields", 400);
     }
 
     // Only accept slip URLs we ourselves issued (Supabase storage bucket
     // configured in SUPABASE_URL). Stops clients from pointing the field
     // at arbitrary external images.
     if (!isValidSlipUrl(slipUrl)) {
-      return NextResponse.json(
-        { error: "Invalid slip URL" },
-        { status: 400 }
-      );
+      return apiError(lang, "invalid_slip_url", 400);
     }
 
     const customer = await prisma.customer.findUnique({ where: { lineUserId } });
     if (!customer) {
-      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+      return apiError(lang, "customer_not_found", 404);
     }
 
     const order = await prisma.order.findUnique({ where: { orderId } });
     if (!order || order.customerId !== customer.id) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      return apiError(lang, "order_not_found", 404);
     }
 
     await prisma.order.update({
@@ -64,6 +60,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to upload payment slip:", error);
-    return NextResponse.json({ error: "Failed to upload payment slip" }, { status: 500 });
+    return apiError(lang, "upload_failed", 500);
   }
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage } from "@/lib/line-api";
 import { notifyAdminNewBooking, notifyAdminLine } from "@/lib/notify-admin";
+import { apiError, getRequestLang } from "@/lib/api-i18n";
 
 // Strip any existing "จองคิว: ..." segment from a note so re-bookings or
 // cancellations don't leave stale booking text behind that the bookings
@@ -14,15 +15,13 @@ function stripBookingFromNote(note: string | null): string {
 }
 
 export async function POST(request: NextRequest) {
+  const lang = getRequestLang(request);
   try {
     const body = await request.json();
     const { lineUserId, activity, orderId, date, time, phone, note, deliveryMethod } = body;
 
     if (!lineUserId || !activity || !date || !time) {
-      return NextResponse.json(
-        { error: "lineUserId, activity, date, and time are required" },
-        { status: 400 }
-      );
+      return apiError(lang, "missing_fields", 400);
     }
 
     const methodLabels: Record<string, string> = {
@@ -35,7 +34,7 @@ export async function POST(request: NextRequest) {
       where: { lineUserId },
     });
     if (!customer) {
-      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+      return apiError(lang, "customer_not_found", 404);
     }
 
     const activityLabels: Record<string, string> = {
@@ -90,36 +89,34 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to create booking:", error);
-    return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
+    return apiError(lang, "booking_failed", 500);
   }
 }
 
 export async function DELETE(request: NextRequest) {
+  const lang = getRequestLang(request);
   try {
     const { searchParams } = new URL(request.url);
     const lineUserId = searchParams.get("lineUserId");
     const orderId = searchParams.get("orderId");
 
     if (!lineUserId || !orderId) {
-      return NextResponse.json(
-        { error: "lineUserId and orderId are required" },
-        { status: 400 }
-      );
+      return apiError(lang, "missing_fields", 400);
     }
 
     const customer = await prisma.customer.findUnique({ where: { lineUserId } });
     if (!customer) {
-      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+      return apiError(lang, "customer_not_found", 404);
     }
 
     const order = await prisma.order.findFirst({
       where: { orderId, customerId: customer.id },
     });
     if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+      return apiError(lang, "order_not_found", 404);
     }
     if (!order.requestedDeliveryDate) {
-      return NextResponse.json({ error: "No booking to cancel" }, { status: 400 });
+      return apiError(lang, "cancel_failed", 400);
     }
 
     await prisma.order.update({
@@ -144,6 +141,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to cancel booking:", error);
-    return NextResponse.json({ error: "Failed to cancel booking" }, { status: 500 });
+    return apiError(lang, "cancel_failed", 500);
   }
 }

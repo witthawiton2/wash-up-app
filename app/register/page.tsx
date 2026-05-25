@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import liff from "@line/liff";
 import { useSettings } from "@/lib/settings-context";
 import { useLang, type Lang } from "@/lib/i18n";
+import { apiFetch } from "@/lib/api-client";
 import LanguageToggle from "@/components/LanguageToggle";
 
 interface PackageOption {
@@ -136,7 +137,7 @@ export default function RegisterPage() {
   const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    fetch("/api/packages")
+    apiFetch("/api/packages")
       .then((res) => res.json())
       .then((data) => setPackages(data))
       .catch(() => {});
@@ -175,7 +176,7 @@ export default function RegisterPage() {
 
   const checkExistingCustomer = async (uid: string) => {
     try {
-      const res = await fetch(`/api/renew?lineUserId=${uid}`);
+      const res = await apiFetch(`/api/renew?lineUserId=${uid}`);
       if (res.ok) {
         // Existing customer → redirect to customer portal
         window.location.href = "/my";
@@ -195,7 +196,7 @@ export default function RegisterPage() {
       const pkg = packages.find((p) => p.name === pkgName);
       if (pkg && pkg.price > 0) {
         try {
-          const res = await fetch(`/api/promptpay-qr?amount=${pkg.price}`);
+          const res = await apiFetch(`/api/promptpay-qr?amount=${pkg.price}`);
           if (res.ok) setQrData(await res.json());
         } catch { /* */ }
       }
@@ -217,7 +218,7 @@ export default function RegisterPage() {
     if (!packageType) { setError(s.err_select_pkg); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/register", {
+      const res = await apiFetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ firstName, lastName, phone, address, package: packageType, email, lineUserId }),
@@ -244,11 +245,11 @@ export default function RegisterPage() {
       if (slipFile) {
         const formData = new FormData();
         formData.append("file", slipFile);
-        const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+        const uploadRes = await apiFetch("/api/upload", { method: "POST", body: formData });
         const uploadData = await uploadRes.json();
         if (uploadData.success) slipUrl = uploadData.url;
       }
-      const res = await fetch("/api/renew", {
+      const res = await apiFetch("/api/renew", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lineUserId, packageName: packageType, slipUrl }),

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
 import { formatDate } from "@/lib/timezone";
 import { getBaseUrl } from "@/lib/base-url";
+import { parseDeliveryPhotos } from "@/lib/delivery-photos";
 
 export async function GET(request: NextRequest) {
   try {
@@ -136,17 +137,7 @@ export async function PUT(request: NextRequest) {
 
       if (status === "ส่งแล้ว") {
         const message = `✅ จัดส่งเรียบร้อยครับ!\n\nออเดอร์: ${orderId}\nส่งถึงแล้วนะครับ ขอบคุณที่ใช้บริการ 🙏`;
-        // Parse photoUrl — could be JSON array or single URL
-        let imageUrls: string[] = [];
-        if (photoUrl) {
-          try {
-            const parsed = JSON.parse(photoUrl);
-            imageUrls = Array.isArray(parsed) ? parsed : [photoUrl];
-          } catch {
-            imageUrls = [photoUrl];
-          }
-        }
-        const httpsUrls = imageUrls.filter((u) => u.startsWith("http"));
+        const httpsUrls = parseDeliveryPhotos(photoUrl).filter((u) => u.startsWith("http"));
         if (httpsUrls.length > 0) {
           pushTextWithImages(
             order.customer.lineUserId,

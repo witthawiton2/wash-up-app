@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyAdminNewRegistration } from "@/lib/notify-admin";
+import { apiError, getRequestLang } from "@/lib/api-i18n";
 
 export async function POST(request: NextRequest) {
+  const lang = getRequestLang(request);
   try {
     const body = await request.json();
     const {
@@ -19,10 +21,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields — lineId (LINE display handle) is optional;
     // lineUserId comes from LIFF and is the real identity link.
     if (!firstName || !lastName || !phone || !address || !pkg) {
-      return NextResponse.json(
-        { error: "กรุณากรอกข้อมูลให้ครบถ้วน" },
-        { status: 400 }
-      );
+      return apiError(lang, "missing_fields", 400);
     }
 
     const name = `${firstName.trim()} ${lastName.trim()}`;
@@ -60,9 +59,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, customer });
   } catch (error) {
     console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง" },
-      { status: 500 }
-    );
+    return apiError(lang, "generic_error", 500);
   }
 }

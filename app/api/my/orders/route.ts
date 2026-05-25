@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/timezone";
+import { apiError, getRequestLang } from "@/lib/api-i18n";
+import { parseDeliveryPhotos } from "@/lib/delivery-photos";
 
 export async function GET(request: NextRequest) {
+  const lang = getRequestLang(request);
   try {
     const lineUserId = request.nextUrl.searchParams.get("lineUserId");
     if (!lineUserId) {
-      return NextResponse.json({ error: "lineUserId is required" }, { status: 400 });
+      return apiError(lang, "missing_fields", 400);
     }
 
     const customer = await prisma.customer.findUnique({
@@ -14,7 +17,7 @@ export async function GET(request: NextRequest) {
       select: { id: true },
     });
     if (!customer) {
-      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+      return apiError(lang, "customer_not_found", 404);
     }
 
     // Customer portal shows recent activity, not full lifetime history.
@@ -34,7 +37,7 @@ export async function GET(request: NextRequest) {
         paymentStatus: true,
         paymentSlipUrl: true,
         items: { select: { itemName: true, quantity: true, price: true } },
-        delivery: { select: { status: true, photoUrl: true } },
+        delivery: { select: { photoUrl: true } },
       },
     });
 
@@ -48,19 +51,6 @@ export async function GET(request: NextRequest) {
         })
       : [];
     const nameEnMap = new Map(services.map((s) => [s.name, s.nameEn]));
-
-    // Delivery.photoUrl is stored as a JSON-stringified array of URLs
-    // (see /dashboard/delivery uploader). Parse defensively in case of
-    // legacy single-URL strings.
-    const parsePhotos = (raw: string | null): string[] => {
-      if (!raw) return [];
-      try {
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed.filter((u) => typeof u === "string") : [raw];
-      } catch {
-        return [raw];
-      }
-    };
 
     const formatted = orders.map((o) => ({
       orderId: o.orderId,
@@ -76,8 +66,7 @@ export async function GET(request: NextRequest) {
       requestedDeliveryDate: o.requestedDeliveryDate
         ? formatDate(o.requestedDeliveryDate)
         : null,
-      deliveryStatus: o.delivery?.status || null,
-      deliveryPhotos: parsePhotos(o.delivery?.photoUrl || null),
+      deliveryPhotos: parseDeliveryPhotos(o.delivery?.photoUrl),
       paymentStatus: o.paymentStatus,
       paymentSlipUrl: o.paymentSlipUrl,
     }));
@@ -85,6 +74,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(formatted);
   } catch (error) {
     console.error("Failed to fetch customer orders:", error);
-    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+    return apiError(lang, "generic_error", 500);
   }
 }

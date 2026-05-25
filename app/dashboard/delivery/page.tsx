@@ -5,6 +5,7 @@ import Modal from "@/components/Modal";
 import Spinner from "@/components/Spinner";
 import Pagination, { usePagination } from "@/components/Pagination";
 import { usePolling } from "@/lib/use-polling";
+import { parseDeliveryPhotos } from "@/lib/delivery-photos";
 
 interface DeliveryItem {
   name: string;
@@ -153,13 +154,9 @@ export default function DeliveryPage() {
   };
 
   const openViewPhotos = (photoUrl: string | null) => {
-    if (!photoUrl) return;
-    try {
-      const arr = JSON.parse(photoUrl);
-      setViewPhotos(Array.isArray(arr) ? arr : [photoUrl]);
-    } catch {
-      setViewPhotos([photoUrl]);
-    }
+    const photos = parseDeliveryPhotos(photoUrl);
+    if (photos.length === 0) return;
+    setViewPhotos(photos);
   };
 
   const calcQty = (items: DeliveryItem[]) =>

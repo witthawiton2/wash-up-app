@@ -2,13 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyAdminRenewRequest } from "@/lib/notify-admin";
 import { formatDate } from "@/lib/timezone";
+import { apiError, getRequestLang } from "@/lib/api-i18n";
 
 // GET: ดึงข้อมูลลูกค้าจาก lineUserId
 export async function GET(request: NextRequest) {
+  const lang = getRequestLang(request);
   try {
     const lineUserId = request.nextUrl.searchParams.get("lineUserId");
     if (!lineUserId) {
-      return NextResponse.json({ error: "lineUserId is required" }, { status: 400 });
+      return apiError(lang, "missing_fields", 400);
     }
 
     const customer = await prisma.customer.findUnique({
@@ -16,7 +18,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!customer) {
-      return NextResponse.json({ error: "ไม่พบข้อมูลลูกค้า กรุณาลงทะเบียนก่อน" }, { status: 404 });
+      return apiError(lang, "customer_not_found", 404);
     }
 
     return NextResponse.json({
@@ -30,18 +32,19 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Renew GET error:", error);
-    return NextResponse.json({ error: "เกิดข้อผิดพลาด" }, { status: 500 });
+    return apiError(lang, "generic_error", 500);
   }
 }
 
 // POST: ส่งคำขอเติมแพ็คเกจ
 export async function POST(request: NextRequest) {
+  const lang = getRequestLang(request);
   try {
     const body = await request.json();
     const { lineUserId, packageName, slipUrl } = body;
 
     if (!lineUserId || !packageName) {
-      return NextResponse.json({ error: "lineUserId and packageName are required" }, { status: 400 });
+      return apiError(lang, "missing_fields", 400);
     }
 
     const customer = await prisma.customer.findUnique({
@@ -49,7 +52,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!customer) {
-      return NextResponse.json({ error: "ไม่พบข้อมูลลูกค้า" }, { status: 404 });
+      return apiError(lang, "customer_not_found", 404);
     }
 
     await prisma.customer.update({
@@ -68,6 +71,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Renew POST error:", error);
-    return NextResponse.json({ error: "เกิดข้อผิดพลาด" }, { status: 500 });
+    return apiError(lang, "generic_error", 500);
   }
 }

@@ -1,27 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { apiError, getRequestLang } from "@/lib/api-i18n";
 
 export async function POST(request: NextRequest) {
+  const lang = getRequestLang(request);
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      return apiError(lang, "no_file", 400);
     }
 
     if (!file.type.startsWith("image/")) {
-      return NextResponse.json(
-        { error: "Only image files are allowed" },
-        { status: 400 }
-      );
+      return apiError(lang, "invalid_file_type", 400);
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: "File size must be less than 5MB" },
-        { status: 400 }
-      );
+      return apiError(lang, "file_too_large", 400);
     }
 
     const bytes = await file.arrayBuffer();
@@ -39,10 +35,7 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Supabase upload error:", error);
-      return NextResponse.json(
-        { error: "Failed to upload: " + error.message },
-        { status: 500 }
-      );
+      return apiError(lang, "upload_failed", 500);
     }
 
     // Get public URL
@@ -53,9 +46,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, url: urlData.publicUrl });
   } catch (error) {
     console.error("Upload error:", error);
-    return NextResponse.json(
-      { error: "Failed to upload file" },
-      { status: 500 }
-    );
+    return apiError(lang, "upload_failed", 500);
   }
 }

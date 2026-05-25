@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useSettings } from "@/lib/settings-context";
 import { useLang, type Lang } from "@/lib/i18n";
+import { apiFetch } from "@/lib/api-client";
 import LanguageToggle from "@/components/LanguageToggle";
 import liff from "@line/liff";
 
@@ -309,9 +311,9 @@ export default function MyPage() {
   const loadData = async (uid: string) => {
     try {
       const [custRes, ordersRes, pkgRes] = await Promise.all([
-        fetch(`/api/renew?lineUserId=${uid}`),
-        fetch(`/api/my/orders?lineUserId=${uid}`),
-        fetch("/api/packages"),
+        apiFetch(`/api/renew?lineUserId=${uid}`),
+        apiFetch(`/api/my/orders?lineUserId=${uid}`),
+        apiFetch("/api/packages"),
       ]);
 
       if (custRes.ok) {
@@ -339,7 +341,7 @@ export default function MyPage() {
     const pkg = packages.find((p) => p.name === pkgName);
     if (pkg && pkg.price > 0) {
       try {
-        const res = await fetch(`/api/promptpay-qr?amount=${pkg.price}`);
+        const res = await apiFetch(`/api/promptpay-qr?amount=${pkg.price}`);
         if (res.ok) {
           const data = await res.json();
           setQrUrl(data.qr);
@@ -363,14 +365,14 @@ export default function MyPage() {
     try {
       const formData = new FormData();
       formData.append("file", slipFile);
-      const uploadRes = await fetch("/api/upload", { method: "POST", body: formData });
+      const uploadRes = await apiFetch("/api/upload", { method: "POST", body: formData });
       const uploadData = await uploadRes.json();
       if (!uploadData.success) {
-        alert("อัพโหลดสลิปไม่สำเร็จ");
+        alert(uploadData.error || s.upload_failed);
         return;
       }
 
-      const res = await fetch("/api/renew", {
+      const res = await apiFetch("/api/renew", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -437,13 +439,13 @@ export default function MyPage() {
     try {
       const formData = new FormData();
       formData.append("file", paySlipFile);
-      const upRes = await fetch("/api/upload", { method: "POST", body: formData });
+      const upRes = await apiFetch("/api/upload", { method: "POST", body: formData });
       const upData = await upRes.json();
       if (!upData.success) {
-        alert(s.upload_failed);
+        alert(upData.error || s.upload_failed);
         return;
       }
-      const res = await fetch("/api/my/payment", {
+      const res = await apiFetch("/api/my/payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lineUserId, orderId: payOrderId, slipUrl: upData.url }),
@@ -466,7 +468,7 @@ export default function MyPage() {
     if (!confirm(fmt(s.confirm_cancel, { orderId }))) return;
     setCancellingOrderId(orderId);
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/my/booking?lineUserId=${encodeURIComponent(lineUserId)}&orderId=${encodeURIComponent(orderId)}`,
         { method: "DELETE" }
       );
@@ -486,7 +488,7 @@ export default function MyPage() {
     if (!bookingActivity || !bookingDate || !bookingTime || !bookingDeliveryMethod || !lineUserId) return;
     setBookingLoading(true);
     try {
-      const res = await fetch("/api/my/booking", {
+      const res = await apiFetch("/api/my/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -619,7 +621,11 @@ export default function MyPage() {
               orders.map((o) => {
                 const st = statusLabel[o.status] || { text: o.status, color: "#94a3b8" };
                 return (
-                  <div key={o.orderId} className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                  <Link
+                    key={o.orderId}
+                    href={`/my/orders/${o.orderId}`}
+                    className="block bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold text-white" style={{ background: `linear-gradient(135deg, ${st.color}, ${st.color}cc)` }}>
@@ -657,7 +663,7 @@ export default function MyPage() {
                     )}
                     {o.deliveryPhotos.length > 0 && (
                       <button
-                        onClick={() => setPhotoViewUrls(o.deliveryPhotos)}
+                        onClick={(e) => { e.preventDefault(); setPhotoViewUrls(o.deliveryPhotos); }}
                         className="mt-2 w-full flex items-center justify-center gap-2 text-xs text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 transition-colors"
                       >
                         <span>📷</span>
@@ -679,7 +685,7 @@ export default function MyPage() {
                         </div>
                       ) : (
                         <button
-                          onClick={() => openPayModal(o.orderId)}
+                          onClick={(e) => { e.preventDefault(); openPayModal(o.orderId); }}
                           className="w-full py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
                           style={{ background: "linear-gradient(135deg, #2563eb, #6366f1)" }}
                         >
@@ -687,7 +693,7 @@ export default function MyPage() {
                         </button>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 );
               })
             )}

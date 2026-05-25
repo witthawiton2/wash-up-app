@@ -86,6 +86,15 @@ const STR: Record<Lang, Record<string, string>> = {
     view_delivery_photo: "ดูรูปจัดส่ง",
     delivery_photo_title: "รูปจัดส่ง",
     close: "ปิด",
+    profile_title: "แก้ไขข้อมูลส่วนตัว",
+    profile_name: "ชื่อ-นามสกุล",
+    profile_phone: "เบอร์โทร",
+    profile_address: "ที่อยู่",
+    profile_email: "อีเมล (ไม่บังคับ)",
+    profile_lineid: "LINE ID (ไม่บังคับ)",
+    save: "บันทึก",
+    saving: "กำลังบันทึก...",
+    save_success: "บันทึกเรียบร้อยแล้ว",
   },
   en: {
     loading: "Loading...",
@@ -164,6 +173,15 @@ const STR: Record<Lang, Record<string, string>> = {
     view_delivery_photo: "View delivery photo",
     delivery_photo_title: "Delivery photo",
     close: "Close",
+    profile_title: "Edit profile",
+    profile_name: "Full name",
+    profile_phone: "Phone",
+    profile_address: "Address",
+    profile_email: "Email (optional)",
+    profile_lineid: "LINE ID (optional)",
+    save: "Save",
+    saving: "Saving...",
+    save_success: "Saved",
   },
 };
 
@@ -258,6 +276,18 @@ export default function MyPage() {
 
   // Delivery photo viewer
   const [photoViewUrls, setPhotoViewUrls] = useState<string[] | null>(null);
+
+  // Profile editor
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    phone: "",
+    address: "",
+    email: "",
+    lineId: "",
+  });
 
   // Payment slip upload
   const [payOrderId, setPayOrderId] = useState<string | null>(null);
@@ -396,6 +426,53 @@ export default function MyPage() {
       alert(s.err_generic);
     } finally {
       setRenewLoading(false);
+    }
+  };
+
+  const openProfile = async () => {
+    if (!lineUserId) return;
+    setProfileSaved(false);
+    setProfileOpen(true);
+    try {
+      const res = await apiFetch(`/api/my/profile?lineUserId=${encodeURIComponent(lineUserId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProfileForm({
+          name: data.name || "",
+          phone: data.phone || "",
+          address: data.address || "",
+          email: data.email || "",
+          lineId: data.lineId || "",
+        });
+      }
+    } catch { /* ignore */ }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!lineUserId) return;
+    if (!profileForm.name.trim() || !profileForm.phone.trim()) return;
+    setProfileSaving(true);
+    try {
+      const res = await apiFetch("/api/my/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lineUserId, ...profileForm }),
+      });
+      if (res.ok) {
+        setProfileSaved(true);
+        loadData(lineUserId);
+        setTimeout(() => {
+          setProfileOpen(false);
+          setProfileSaved(false);
+        }, 1200);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || s.err_generic);
+      }
+    } catch {
+      alert(s.err_generic);
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -558,7 +635,17 @@ export default function MyPage() {
         <div className="absolute -bottom-20 -left-10 w-60 h-60 rounded-full" style={{ background: "radial-gradient(circle, rgba(59,130,246,0.2), transparent)" }} />
 
         <div className="relative z-10">
-          <div className="flex justify-end mb-2">
+          <div className="flex justify-end items-center gap-2 mb-2">
+            <button
+              onClick={openProfile}
+              aria-label={s.profile_title}
+              className="p-1.5 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            </button>
             <LanguageToggle variant="dark" />
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1054,6 +1141,89 @@ export default function MyPage() {
             >
               {s.close}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Profile Edit Modal */}
+      {profileOpen && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800">{s.profile_title}</h3>
+              <button onClick={() => setProfileOpen(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+
+            {profileSaved && (
+              <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-center text-sm mb-3">
+                ✅ {s.save_success}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">{s.profile_name}</label>
+                <input
+                  type="text"
+                  value={profileForm.name}
+                  onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">{s.profile_phone}</label>
+                <input
+                  type="tel"
+                  value={profileForm.phone}
+                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">{s.profile_address}</label>
+                <textarea
+                  value={profileForm.address}
+                  onChange={(e) => setProfileForm({ ...profileForm, address: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">{s.profile_email}</label>
+                <input
+                  type="email"
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">{s.profile_lineid}</label>
+                <input
+                  type="text"
+                  value={profileForm.lineId}
+                  onChange={(e) => setProfileForm({ ...profileForm, lineId: e.target.value })}
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setProfileOpen(false)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                {s.cancel}
+              </button>
+              <button
+                onClick={handleSaveProfile}
+                disabled={profileSaving || !profileForm.name.trim() || !profileForm.phone.trim()}
+                className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #2563eb, #6366f1)" }}
+              >
+                {profileSaving ? s.saving : s.save}
+              </button>
+            </div>
           </div>
         </div>
       )}

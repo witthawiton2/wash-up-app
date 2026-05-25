@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
 import { formatDateTime } from "@/lib/timezone";
+import { getBaseUrl } from "@/lib/base-url";
 
 export async function GET(request: NextRequest) {
   try {
@@ -153,6 +154,7 @@ export async function POST(request: NextRequest) {
           remaining: { decrement: totalDeduction },
         },
       });
+      const oldRemaining = updatedCustomer.remaining + totalDeduction;
 
       // If remaining <= 0, add package price to order + set renewPending
       if (updatedCustomer.remaining <= 0 && !updatedCustomer.renewPending) {
@@ -181,13 +183,18 @@ export async function POST(request: NextRequest) {
       }
 
       if (updatedCustomer.lineUserId) {
-        // Alert: remaining < 10
-        if (updatedCustomer.remaining < 10) {
+        // Alert when the order just crossed the low-balance threshold.
+        // Using the crossing condition (old > N && new <= N) prevents
+        // re-sending the same nudge on every subsequent order while the
+        // balance stays low.
+        const LOW_BALANCE_THRESHOLD = 5;
+        if (oldRemaining > LOW_BALANCE_THRESHOLD && updatedCustomer.remaining <= LOW_BALANCE_THRESHOLD) {
           const remaining = updatedCustomer.remaining;
+          const baseUrl = getBaseUrl();
           const message =
             remaining <= 0
-              ? `⚠️ แจ้งเตือน\nยอดแพ็กเกจของลูกค้าเหลือน้อย หรือหมดแล้วนะครับ\n\nกดต่ออายุแพ็กเกจได้เลยครับ 😊`
-              : `⚠️ แจ้งเตือน\nยอดแพ็กเกจของลูกค้าเหลือน้อย (เหลือ ${remaining} ชิ้น)\n\nกดต่ออายุแพ็กเกจได้เลยครับ 😊`;
+              ? `⚠️ แพ็กเกจของคุณหมดแล้ว\n\nกดต่ออายุแพ็กเกจได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`
+              : `⚠️ แพ็กเกจของคุณเหลือ ${remaining} ชิ้น\n\nเติมแพ็กเกจล่วงหน้าได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`;
           pushTextMessage(updatedCustomer.lineUserId, message).catch((err) =>
             console.error("Failed to send LINE low-package alert:", err)
           );
@@ -333,6 +340,26 @@ export async function PUT(request: NextRequest) {
             remaining: { decrement: diff },
           },
         });
+        const oldRemainingPut = updatedCustomer.remaining + diff;
+
+        // Same threshold-crossing push as POST — only fires when this edit
+        // pushes the balance across the low-balance line.
+        const LOW_BALANCE_THRESHOLD = 5;
+        if (
+          updatedCustomer.lineUserId &&
+          oldRemainingPut > LOW_BALANCE_THRESHOLD &&
+          updatedCustomer.remaining <= LOW_BALANCE_THRESHOLD
+        ) {
+          const baseUrl = getBaseUrl();
+          const r = updatedCustomer.remaining;
+          const message =
+            r <= 0
+              ? `⚠️ แพ็กเกจของคุณหมดแล้ว\n\nกดต่ออายุแพ็กเกจได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`
+              : `⚠️ แพ็กเกจของคุณเหลือ ${r} ชิ้น\n\nเติมแพ็กเกจล่วงหน้าได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`;
+          pushTextMessage(updatedCustomer.lineUserId, message).catch((err) =>
+            console.error("Failed to send LINE low-package alert (PUT):", err)
+          );
+        }
 
         // If remaining just dropped to <=0 and renewal isn't already pending,
         // add the package renewal fee to this order's total (same behaviour as POST)

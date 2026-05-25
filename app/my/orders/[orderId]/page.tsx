@@ -31,6 +31,10 @@ const STR: Record<Lang, Record<string, string>> = {
     not_paid: "ยังไม่ชำระ",
     view_slip: "ดูสลิปที่ส่ง",
     view_receipt: "🧾 ดูใบเสร็จ",
+    download: "บันทึก",
+    share: "แชร์",
+    share_text: "ใบเสร็จ Wash Up",
+    share_unsupported: "ระบบนี้ไม่รองรับการแชร์ — กดบันทึกแทนได้ครับ",
     status_washing: "กำลังซัก",
     status_ready: "พร้อมส่ง",
     status_delivered: "ส่งแล้ว",
@@ -61,6 +65,10 @@ const STR: Record<Lang, Record<string, string>> = {
     not_paid: "Unpaid",
     view_slip: "View submitted slip",
     view_receipt: "🧾 View receipt",
+    download: "Save",
+    share: "Share",
+    share_text: "Wash Up receipt",
+    share_unsupported: "Sharing isn't supported here — try saving instead.",
     status_washing: "Washing",
     status_ready: "Ready",
     status_delivered: "Delivered",
@@ -193,6 +201,27 @@ export default function OrderDetailPage({
       }
     } finally {
       receiptLoading.current = false;
+    }
+  };
+
+  // Share the receipt image via Web Share API when supported (LIFF on iOS/Android
+  // exposes it); otherwise fall back to the download flow.
+  const shareReceipt = async () => {
+    if (!receiptUrl) return;
+    try {
+      const res = await fetch(receiptUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `receipt-${orderId}.png`, { type: blob.type || "image/png" });
+      const nav = navigator as Navigator & { canShare?: (data?: ShareData) => boolean };
+      if (nav.share && nav.canShare?.({ files: [file] })) {
+        await nav.share({ files: [file], title: s.share_text, text: `${s.order} ${orderId}` });
+      } else if (nav.share) {
+        await nav.share({ title: s.share_text, text: `${s.order} ${orderId}`, url: window.location.href });
+      } else {
+        alert(s.share_unsupported);
+      }
+    } catch {
+      // user dismissed or share failed — silent
     }
   };
 
@@ -426,9 +455,25 @@ export default function OrderDetailPage({
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={receiptUrl} alt="receipt" className="w-full max-h-[80vh] object-contain rounded-xl bg-white" />
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <a
+                href={receiptUrl}
+                download={`receipt-${orderId}.png`}
+                className="text-center py-2.5 rounded-xl bg-white/90 text-sm font-medium text-slate-700 hover:bg-white"
+              >
+                💾 {s.download}
+              </a>
+              <button
+                onClick={shareReceipt}
+                className="py-2.5 rounded-xl text-sm font-semibold text-white hover:opacity-90"
+                style={{ background: "linear-gradient(135deg, #2563eb, #6366f1)" }}
+              >
+                📤 {s.share}
+              </button>
+            </div>
             <button
               onClick={() => setReceiptUrl(null)}
-              className="mt-3 w-full py-2.5 rounded-xl bg-white/90 text-sm font-medium text-slate-700 hover:bg-white"
+              className="mt-2 w-full py-2.5 rounded-xl bg-white/20 text-sm font-medium text-white/90 hover:bg-white/30"
             >
               {s.close}
             </button>

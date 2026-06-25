@@ -270,9 +270,11 @@ export async function GET(request: NextRequest) {
       customerCount,
     });
   } catch (error) {
-    console.error("Failed to fetch summary:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error("Failed to fetch summary:", msg, stack);
     return NextResponse.json(
-      { error: "Failed to fetch summary" },
+      { error: "Failed to fetch summary", detail: msg },
       { status: 500 }
     );
   }

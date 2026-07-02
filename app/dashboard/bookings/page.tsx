@@ -23,8 +23,6 @@ const statusBadge: Record<string, string> = {
   "ส่งแล้ว": "badge-gray",
 };
 
-type SlotKey = "morning" | "afternoon" | "evening" | "other";
-
 type MethodKey = "home" | "self" | "unknown";
 
 const METHOD_GROUPS: { key: MethodKey; label: string; icon: string; accent: string }[] = [
@@ -39,28 +37,16 @@ function methodOf(deliveryMethod: string): MethodKey {
   return "unknown";
 }
 
-// Same slot boundaries the /my booking form uses so admin's grouping
-// matches what the customer picked on the LIFF side.
-const SLOTS: {
-  key: SlotKey;
-  label: string;
-  range: string;
-  accent: string;
-}[] = [
-  { key: "morning",   label: "ช่วงเช้า",  range: "09:00-12:00", accent: "bg-amber-50 border-amber-200 text-amber-800" },
-  { key: "afternoon", label: "ช่วงบ่าย",  range: "12:00-18:00", accent: "bg-blue-50 border-blue-200 text-blue-800" },
-  { key: "evening",   label: "ช่วงเย็น",  range: "18:00-20:30", accent: "bg-indigo-50 border-indigo-200 text-indigo-800" },
-  { key: "other",     label: "อื่นๆ",     range: "นอกช่วงหลัก", accent: "bg-slate-50 border-slate-200 text-slate-700" },
-];
-
-function slotOf(time: string): SlotKey {
-  // requestedTime is "HH:MM" zero-padded.
+// Colour the time chip by rough period so admins can still eyeball
+// morning vs afternoon vs evening at a glance, even though each
+// concrete HH:MM slot renders as its own group.
+function timeAccent(time: string): string {
   const [h] = time.split(":").map((n) => parseInt(n, 10));
-  if (isNaN(h)) return "other";
-  if (h >= 9 && h < 12) return "morning";
-  if (h >= 12 && h < 18) return "afternoon";
-  if (h >= 18 && h < 21) return "evening";
-  return "other";
+  if (isNaN(h)) return "bg-slate-50 border-slate-200 text-slate-700";
+  if (h >= 9 && h < 12) return "bg-amber-50 border-amber-200 text-amber-800";
+  if (h >= 12 && h < 18) return "bg-blue-50 border-blue-200 text-blue-800";
+  if (h >= 18 && h < 21) return "bg-indigo-50 border-indigo-200 text-indigo-800";
+  return "bg-slate-50 border-slate-200 text-slate-700";
 }
 
 const todayIso = () => {
@@ -118,19 +104,24 @@ export default function BookingsPage() {
     return [...list].sort((a, b) => a.requestedTime.localeCompare(b.requestedTime));
   })();
 
+  // Bucket by concrete HH:MM, then by pickup method inside each bucket.
+  // Missing/malformed times fall into a "--:--" bucket rendered last.
   const grouped = useMemo(() => {
     const emptyMethods = (): Record<MethodKey, Booking[]> => ({ home: [], self: [], unknown: [] });
-    const map: Record<SlotKey, Record<MethodKey, Booking[]>> = {
-      morning: emptyMethods(),
-      afternoon: emptyMethods(),
-      evening: emptyMethods(),
-      other: emptyMethods(),
-    };
-    for (const b of filtered) map[slotOf(b.requestedTime)][methodOf(b.deliveryMethod)].push(b);
-    return map;
+    const byTime = new Map<string, Record<MethodKey, Booking[]>>();
+    for (const b of filtered) {
+      const key = b.requestedTime || "--:--";
+      if (!byTime.has(key)) byTime.set(key, emptyMethods());
+      byTime.get(key)![methodOf(b.deliveryMethod)].push(b);
+    }
+    return Array.from(byTime.entries()).sort(([a], [b]) => {
+      if (a === "--:--") return 1;
+      if (b === "--:--") return -1;
+      return a.localeCompare(b);
+    });
   }, [filtered]);
 
-  const slotTotal = (buckets: Record<MethodKey, Booking[]>) =>
+  const timeTotal = (buckets: Record<MethodKey, Booking[]>) =>
     buckets.home.length + buckets.self.length + buckets.unknown.length;
 
   return (
@@ -185,17 +176,16 @@ export default function BookingsPage() {
           {selectedDate ? `ไม่มีคิวในวันที่ ${thaiSelected}` : "ไม่มีรายการจอง"}
         </div>
       ) : (
-        <div className="space-y-6">
-          {SLOTS.map((slot) => {
-            const buckets = grouped[slot.key];
-            const total = slotTotal(buckets);
+        <div className="space-y-5">
+          {grouped.map(([time, buckets]) => {
+            const total = timeTotal(buckets);
             if (total === 0) return null;
             return (
-              <section key={slot.key}>
-                <div className={`flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg border ${slot.accent}`}>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-base font-bold">{slot.label}</span>
-                    <span className="text-xs opacity-75">{slot.range}</span>
+              <section key={time}>
+                <div className={`flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg border ${timeAccent(time)}`}>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-2xl font-extrabold tabular-nums">{time}</span>
+                    <span className="text-xs opacity-75">น.</span>
                   </div>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/70">
                     {total} คิว
@@ -206,7 +196,7 @@ export default function BookingsPage() {
                   const list = buckets[mg.key];
                   if (list.length === 0) return null;
                   return (
-                    <div key={mg.key} className="mb-3 last:mb-0">
+                    <div key={mg.key} className="mb-3 last:mb-0 ml-2">
                       <div className={`flex items-center justify-between gap-3 mb-2 px-3 py-1.5 rounded-md border text-sm ${mg.accent}`}>
                         <div className="flex items-center gap-2">
                           <span>{mg.icon}</span>
@@ -221,8 +211,7 @@ export default function BookingsPage() {
                           <div key={b.orderId} className="card">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex items-baseline gap-2">
-                                <span className="text-xl font-bold text-blue-600 tabular-nums">{b.requestedTime}</span>
-                                <span className="font-bold text-slate-500 text-sm">{b.orderId}</span>
+                                <span className="font-bold text-blue-600 text-base">{b.orderId}</span>
                                 <span className="ml-1 text-slate-600 text-sm">{b.customer}</span>
                               </div>
                               <span className={`badge ${statusBadge[b.status] || "badge-gray"}`}>{b.status}</span>

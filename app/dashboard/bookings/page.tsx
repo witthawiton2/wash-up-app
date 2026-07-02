@@ -23,20 +23,6 @@ const statusBadge: Record<string, string> = {
   "ส่งแล้ว": "badge-gray",
 };
 
-type MethodKey = "home" | "self" | "unknown";
-
-const METHOD_GROUPS: { key: MethodKey; label: string; icon: string; accent: string }[] = [
-  { key: "home",    label: "ฝากที่พัก",  icon: "🏠", accent: "bg-emerald-50 border-emerald-200 text-emerald-800" },
-  { key: "self",    label: "รับที่ร้าน", icon: "🏪", accent: "bg-sky-50 border-sky-200 text-sky-800" },
-  { key: "unknown", label: "ไม่ระบุ",    icon: "❓", accent: "bg-slate-50 border-slate-200 text-slate-700" },
-];
-
-function methodOf(deliveryMethod: string): MethodKey {
-  if (deliveryMethod === "ฝากที่พัก") return "home";
-  if (deliveryMethod === "รับด้วยตัวเอง") return "self";
-  return "unknown";
-}
-
 // Colour the time chip by rough period so admins can still eyeball
 // morning vs afternoon vs evening at a glance, even though each
 // concrete HH:MM slot renders as its own group.
@@ -104,15 +90,14 @@ export default function BookingsPage() {
     return [...list].sort((a, b) => a.requestedTime.localeCompare(b.requestedTime));
   })();
 
-  // Bucket by concrete HH:MM, then by pickup method inside each bucket.
-  // Missing/malformed times fall into a "--:--" bucket rendered last.
+  // Bucket by concrete HH:MM. Missing/malformed times fall into a
+  // "--:--" bucket rendered last.
   const grouped = useMemo(() => {
-    const emptyMethods = (): Record<MethodKey, Booking[]> => ({ home: [], self: [], unknown: [] });
-    const byTime = new Map<string, Record<MethodKey, Booking[]>>();
+    const byTime = new Map<string, Booking[]>();
     for (const b of filtered) {
       const key = b.requestedTime || "--:--";
-      if (!byTime.has(key)) byTime.set(key, emptyMethods());
-      byTime.get(key)![methodOf(b.deliveryMethod)].push(b);
+      if (!byTime.has(key)) byTime.set(key, []);
+      byTime.get(key)!.push(b);
     }
     return Array.from(byTime.entries()).sort(([a], [b]) => {
       if (a === "--:--") return 1;
@@ -120,9 +105,6 @@ export default function BookingsPage() {
       return a.localeCompare(b);
     });
   }, [filtered]);
-
-  const timeTotal = (buckets: Record<MethodKey, Booking[]>) =>
-    buckets.home.length + buckets.self.length + buckets.unknown.length;
 
   return (
     <div>
@@ -177,9 +159,8 @@ export default function BookingsPage() {
         </div>
       ) : (
         <div className="space-y-5">
-          {grouped.map(([time, buckets]) => {
-            const total = timeTotal(buckets);
-            if (total === 0) return null;
+          {grouped.map(([time, list]) => {
+            if (list.length === 0) return null;
             return (
               <section key={time}>
                 <div className={`flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg border ${timeAccent(time)}`}>
@@ -188,67 +169,56 @@ export default function BookingsPage() {
                     <span className="text-xs opacity-75">น.</span>
                   </div>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/70">
-                    {total} คิว
+                    {list.length} คิว
                   </span>
                 </div>
 
-                {METHOD_GROUPS.map((mg) => {
-                  const list = buckets[mg.key];
-                  if (list.length === 0) return null;
-                  return (
-                    <div key={mg.key} className="mb-3 last:mb-0 ml-2">
-                      <div className={`flex items-center justify-between gap-3 mb-2 px-3 py-1.5 rounded-md border text-sm ${mg.accent}`}>
-                        <div className="flex items-center gap-2">
-                          <span>{mg.icon}</span>
-                          <span className="font-semibold">{mg.label}</span>
+                <div className="space-y-3">
+                  {list.map((b) => (
+                    <div key={b.orderId} className="card">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-bold text-blue-600 text-base">{b.orderId}</span>
+                          <span className="ml-1 text-slate-600 text-sm">{b.customer}</span>
                         </div>
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/70">
-                          {list.length}
-                        </span>
+                        <span className={`badge ${statusBadge[b.status] || "badge-gray"}`}>{b.status}</span>
                       </div>
-                      <div className="space-y-3">
-                        {list.map((b) => (
-                          <div key={b.orderId} className="card">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-baseline gap-2">
-                                <span className="font-bold text-blue-600 text-base">{b.orderId}</span>
-                                <span className="ml-1 text-slate-600 text-sm">{b.customer}</span>
-                              </div>
-                              <span className={`badge ${statusBadge[b.status] || "badge-gray"}`}>{b.status}</span>
-                            </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-sm mb-2">
-                              <div>
-                                <span className="text-slate-400">วันที่จอง: </span>
-                                <span className="font-medium text-slate-700">{b.requestedDate}</span>
-                              </div>
-                              <div>
-                                <span className="text-slate-400">โทร: </span>
-                                <span className="text-slate-700">{b.phone || "-"}</span>
-                              </div>
-                              <div className="col-span-2">
-                                <span className="text-slate-400">ที่อยู่: </span>
-                                <span className="text-slate-700">{b.address || "-"}</span>
-                              </div>
-                            </div>
-
-                            {b.items.length > 0 && (
-                              <div className="text-xs text-slate-500 mb-1">
-                                {b.items.map((i) => `${i.name} x${i.qty}`).join(", ")}
-                              </div>
-                            )}
-
-                            {b.note && (
-                              <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 mt-1">
-                                {b.note}
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                        <div>
+                          <span className="text-slate-400">วันที่จอง: </span>
+                          <span className="font-medium text-slate-700">{b.requestedDate}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">โทร: </span>
+                          <span className="text-slate-700">{b.phone || "-"}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-slate-400">ที่อยู่: </span>
+                          <span className="text-slate-700">{b.address || "-"}</span>
+                        </div>
                       </div>
+
+                      {b.deliveryMethod && (
+                        <div className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 mb-2">
+                          📦 {b.deliveryMethod}
+                        </div>
+                      )}
+
+                      {b.items.length > 0 && (
+                        <div className="text-xs text-slate-500 mb-1">
+                          {b.items.map((i) => `${i.name} x${i.qty}`).join(", ")}
+                        </div>
+                      )}
+
+                      {b.note && (
+                        <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 mt-1">
+                          {b.note}
+                        </div>
+                      )}
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
               </section>
             );
           })}

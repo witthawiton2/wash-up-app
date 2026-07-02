@@ -56,21 +56,54 @@ export async function POST(request: NextRequest) {
       ? await prisma.order.findFirst({ where: { orderId, customerId: customer.id } })
       : latestOrder;
 
+    // The customer-facing time slots use "9:00" / "9:30" — pad to 2 digits
+    // so the ISO string is valid for new Date().
+    const [hh, mm] = time.split(":");
+    const isoTime = `${(hh || "0").padStart(2, "0")}:${(mm || "00").padStart(2, "0")}`;
+    const requestedDeliveryDate = new Date(`${date}T${isoTime}:00+07:00`);
+
     if (targetOrder) {
       // Drop any prior "จองคิว: ..." segment so a re-booking replaces the old
       // booking info instead of stacking on top of it.
       const baseNote = stripBookingFromNote(targetOrder.note);
-      // The customer-facing time slots use "9:00" / "9:30" — pad to 2 digits
-      // so the ISO string is valid for new Date().
-      const [hh, mm] = time.split(":");
-      const isoTime = `${(hh || "0").padStart(2, "0")}:${(mm || "00").padStart(2, "0")}`;
       await prisma.order.update({
         where: { id: targetOrder.id },
         data: {
-          requestedDeliveryDate: new Date(`${date}T${isoTime}:00+07:00`),
+          requestedDeliveryDate,
           note: baseNote ? `${baseNote} | ${bookingInfo}` : bookingInfo,
         },
       });
+    } else {
+      // Customer has no pending order in the system yet (e.g. old laundry
+      // the shop is holding from before the software existed, or a fresh
+      // drop-off not yet logged). Create an empty placeholder Order so the
+      // booking shows up in /my "Your bookings" and /dashboard/bookings —
+      // shop will fill in the items when they process the physical laundry.
+      // Retry a couple of times on the rare orderId race with staff creates.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const latest = await prisma.order.findFirst({
+          orderBy: { id: "desc" },
+          select: { orderId: true },
+        });
+        const nextNum = latest ? (parseInt(latest.orderId.replace(/\D/g, ""), 10) || 0) + 1 : 1;
+        const newOrderId = String(nextNum + attempt).padStart(6, "0");
+        try {
+          await prisma.order.create({
+            data: {
+              orderId: newOrderId,
+              customerId: customer.id,
+              status: "รอซักรีด",
+              totalAmount: 0,
+              requestedDeliveryDate,
+              note: bookingInfo,
+            },
+          });
+          break;
+        } catch (e) {
+          // Unique-constraint collision — try the next number.
+          if (attempt === 4) throw e;
+        }
+      }
     }
 
     // Notify admin via LINE

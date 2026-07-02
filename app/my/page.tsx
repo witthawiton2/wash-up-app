@@ -675,6 +675,7 @@ export default function MyPage() {
         setBookingTime("");
         setBookingDeliveryMethod("");
         setBookingNote("");
+        loadData(lineUserId);
       }
     } catch {
       alert(s.err_generic);

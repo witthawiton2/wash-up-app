@@ -118,13 +118,18 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.user.delete({ where: { id: Number(id) } });
-
+    const numId = Number(id);
+    const existing = await prisma.user.findUnique({ where: { id: numId } });
+    if (!existing) {
+      return NextResponse.json({ success: true, alreadyGone: true });
+    }
+    await prisma.user.delete({ where: { id: numId } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete user:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to delete user:", msg);
     return NextResponse.json(
-      { error: "Failed to delete user" },
+      { error: "Failed to delete user", detail: msg },
       { status: 500 }
     );
   }

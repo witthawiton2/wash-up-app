@@ -106,13 +106,18 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.serviceItem.delete({ where: { id: Number(id) } });
-
+    const numId = Number(id);
+    const existing = await prisma.serviceItem.findUnique({ where: { id: numId } });
+    if (!existing) {
+      return NextResponse.json({ success: true, alreadyGone: true });
+    }
+    await prisma.serviceItem.delete({ where: { id: numId } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete service item:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to delete service item:", msg);
     return NextResponse.json(
-      { error: "Failed to delete service item" },
+      { error: "Failed to delete service item", detail: msg },
       { status: 500 }
     );
   }

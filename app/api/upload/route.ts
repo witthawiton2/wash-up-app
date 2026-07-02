@@ -4,8 +4,14 @@ import { apiError, getRequestLang } from "@/lib/api-i18n";
 
 export async function POST(request: NextRequest) {
   const lang = getRequestLang(request);
+  let formData: FormData;
   try {
-    const formData = await request.formData();
+    formData = await request.formData();
+  } catch {
+    // Body isn't valid multipart — treat as "no file" rather than server error.
+    return apiError(lang, "no_file", 400);
+  }
+  try {
     const file = formData.get("file") as File | null;
 
     if (!file) {

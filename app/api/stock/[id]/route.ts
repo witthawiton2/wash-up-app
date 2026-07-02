@@ -34,13 +34,16 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await prisma.stock.update({
-      where: { id: Number(id) },
-      data: { active: false },
-    });
+    const numId = Number(id);
+    const existing = await prisma.stock.findUnique({ where: { id: numId } });
+    if (!existing) {
+      return NextResponse.json({ success: true, alreadyGone: true });
+    }
+    await prisma.stock.update({ where: { id: numId }, data: { active: false } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete stock item:", error);
-    return NextResponse.json({ error: "Failed to delete stock item" }, { status: 500 });
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to delete stock item:", msg);
+    return NextResponse.json({ error: "Failed to delete stock item", detail: msg }, { status: 500 });
   }
 }

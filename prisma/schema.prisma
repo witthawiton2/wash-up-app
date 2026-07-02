@@ -201,3 +201,14 @@ model Settings {
   receiptFooter   String?
   updatedAt       DateTime @updatedAt
 }
+
+model BookingSlotCap {
+  id        Int      @id @default(autoincrement())
+  time      String   // "9:00" — matches the HH:MM strings in /my slotTimes
+  method    String   // "home" | "self"
+  capacity  Int      @default(0) // 0 = closed for this method
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([time, method])
+}

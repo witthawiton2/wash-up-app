@@ -4,6 +4,12 @@ import { pushTextMessage } from "@/lib/line-api";
 import { notifyAdminNewBooking, notifyAdminLine } from "@/lib/notify-admin";
 import { apiError, getRequestLang } from "@/lib/api-i18n";
 import { sendCustomerPush } from "@/lib/push";
+import {
+  bangkokDayRange,
+  extractMethodFromNote,
+  formatSlotTimeFromDate,
+  type SlotMethod,
+} from "@/lib/booking-slots";
 
 // Strip any existing "จองคิว: ..." segment from a note so re-bookings or
 // cancellations don't leave stale booking text behind that the bookings
@@ -36,6 +42,38 @@ export async function POST(request: NextRequest) {
     });
     if (!customer) {
       return apiError(lang, "customer_not_found", 404);
+    }
+
+    // Slot-cap enforcement: only when a method was picked (all new
+    // bookings do; unknown/legacy submissions skip). Missing cap row = no
+    // limit; capacity 0 = closed.
+    if (deliveryMethod === "home" || deliveryMethod === "self") {
+      const method: SlotMethod = deliveryMethod;
+      const cap = await prisma.bookingSlotCap.findUnique({
+        where: { time_method: { time, method } },
+        select: { capacity: true },
+      });
+      if (cap) {
+        const range = bangkokDayRange(date);
+        const sameDay = await prisma.order.findMany({
+          where: {
+            requestedDeliveryDate: { gte: range.gte, lte: range.lte },
+            // Don't count the customer's own current booking on the target
+            // order — re-booking the same slot should be a no-op, not a
+            // reason to reject.
+            ...(orderId ? { NOT: { orderId } } : {}),
+          },
+          select: { requestedDeliveryDate: true, note: true },
+        });
+        const used = sameDay.filter((o) => {
+          if (!o.requestedDeliveryDate) return false;
+          if (formatSlotTimeFromDate(o.requestedDeliveryDate) !== time) return false;
+          return extractMethodFromNote(o.note) === method;
+        }).length;
+        if (used >= cap.capacity) {
+          return apiError(lang, "slot_full", 409);
+        }
+      }
     }
 
     const activityLabels: Record<string, string> = {

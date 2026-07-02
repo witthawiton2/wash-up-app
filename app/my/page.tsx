@@ -104,6 +104,8 @@ const STR: Record<Lang, Record<string, string>> = {
     save: "บันทึก",
     saving: "กำลังบันทึก...",
     save_success: "บันทึกเรียบร้อยแล้ว",
+    slot_full_short: "เต็ม",
+    slot_remaining: "เหลือ {n}",
   },
   en: {
     loading: "Loading...",
@@ -198,6 +200,8 @@ const STR: Record<Lang, Record<string, string>> = {
     save: "Save",
     saving: "Saving...",
     save_success: "Saved",
+    slot_full_short: "Full",
+    slot_remaining: "{n} left",
   },
 };
 
@@ -300,6 +304,10 @@ export default function MyPage() {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [bookingDeliveryMethod, setBookingDeliveryMethod] = useState<"" | "self" | "home">("");
+  const [slotAvailability, setSlotAvailability] = useState<Record<
+    string,
+    { home: { used: number; cap: number | null; full: boolean }; self: { used: number; cap: number | null; full: boolean } }
+  > | null>(null);
 
   // Delivery photo viewer
   const [photoViewUrls, setPhotoViewUrls] = useState<string[] | null>(null);
@@ -368,6 +376,24 @@ export default function MyPage() {
         setLoading(false);
       });
   }, []);
+
+  // Refresh slot availability whenever the customer picks a booking date.
+  useEffect(() => {
+    if (!bookingDate) {
+      setSlotAvailability(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch(`/api/my/slot-availability?date=${encodeURIComponent(bookingDate)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setSlotAvailability(data);
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [bookingDate]);
 
   // Show the push opt-in banner only when the browser supports Web Push,
   // permission hasn't been decided yet, and the user hasn't dismissed it.
@@ -676,6 +702,18 @@ export default function MyPage() {
         setBookingDeliveryMethod("");
         setBookingNote("");
         loadData(lineUserId);
+      } else {
+        // Surface the server message (e.g. "ช่วงเวลานี้เต็มแล้ว" on 409)
+        // instead of a generic toast so the customer knows what to do.
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || s.err_generic);
+        // Refresh availability so the just-taken slot shows as full.
+        if (bookingDate) {
+          apiFetch(`/api/my/slot-availability?date=${encodeURIComponent(bookingDate)}`)
+            .then((r) => r.ok ? r.json() : null)
+            .then((d) => { if (d) setSlotAvailability(d); })
+            .catch(() => {});
+        }
       }
     } catch {
       alert(s.err_generic);
@@ -1138,8 +1176,43 @@ export default function MyPage() {
               </div>
             )}
 
-            {/* เลือกช่วงเวลา */}
+            {/* วิธีรับ-ส่งผ้า (เลือกก่อนเพื่อให้ปุ่มเวลารู้ว่าจะ cap จาก method ไหน) */}
             {bookingActivity && (bookingActivity === "send" || bookingOrderId || pendingOrders.length === 0) && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-700 mb-3">{s.pickup_method}</h4>
+                <div className="space-y-2">
+                  {[
+                    { id: "self" as const, label: s.method_self_title, desc: s.method_self_desc },
+                    { id: "home" as const, label: s.method_home_title, desc: s.method_home_desc },
+                  ].map((m) => (
+                    <label
+                      key={m.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        bookingDeliveryMethod === m.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-slate-200 hover:border-blue-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="deliveryMethod"
+                        value={m.id}
+                        checked={bookingDeliveryMethod === m.id}
+                        onChange={() => { setBookingDeliveryMethod(m.id); setBookingTime(""); }}
+                        className="w-5 h-5 text-blue-500"
+                      />
+                      <div>
+                        <div className="text-sm font-medium text-slate-700">{m.label}</div>
+                        <div className="text-[11px] text-slate-400">{m.desc}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* เลือกช่วงเวลา */}
+            {bookingDeliveryMethod && (
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <h4 className="text-sm font-bold text-slate-700 mb-3">{s.choose_timeslot}</h4>
                 <div className="space-y-2">
@@ -1181,59 +1254,40 @@ export default function MyPage() {
               </div>
             )}
 
-            {/* เลือกเวลา */}
-            {bookingDate && bookingTimeSlot && (
+            {/* เลือกเวลา (พร้อม cap indicator ตาม method ที่เลือก) */}
+            {bookingDate && bookingTimeSlot && bookingDeliveryMethod && (
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <h4 className="text-sm font-bold text-slate-700 mb-3">{s.choose_time}</h4>
                 <div className="flex flex-wrap gap-2">
-                  {slotTimes[bookingTimeSlot]?.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setBookingTime(t)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                        bookingTime === t
-                          ? "bg-blue-500 text-white border-blue-500"
-                          : "bg-white text-slate-600 border-slate-300 hover:border-blue-400"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* วิธีรับ-ส่งผ้า */}
-            {bookingTime && (
-              <div className="bg-white rounded-xl p-4 shadow-sm">
-                <h4 className="text-sm font-bold text-slate-700 mb-3">{s.pickup_method}</h4>
-                <div className="space-y-2">
-                  {[
-                    { id: "self" as const, label: s.method_self_title, desc: s.method_self_desc },
-                    { id: "home" as const, label: s.method_home_title, desc: s.method_home_desc },
-                  ].map((m) => (
-                    <label
-                      key={m.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        bookingDeliveryMethod === m.id
-                          ? "border-blue-500 bg-blue-50"
-                          : "border-slate-200 hover:border-blue-300"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="deliveryMethod"
-                        value={m.id}
-                        checked={bookingDeliveryMethod === m.id}
-                        onChange={() => setBookingDeliveryMethod(m.id)}
-                        className="w-5 h-5 text-blue-500"
-                      />
-                      <div>
-                        <div className="text-sm font-medium text-slate-700">{m.label}</div>
-                        <div className="text-[11px] text-slate-400">{m.desc}</div>
-                      </div>
-                    </label>
-                  ))}
+                  {slotTimes[bookingTimeSlot]?.map((t) => {
+                    const info = slotAvailability?.[t]?.[bookingDeliveryMethod as "home" | "self"];
+                    const full = !!info?.full;
+                    const remaining = info && info.cap !== null ? Math.max(0, info.cap - info.used) : null;
+                    const selected = bookingTime === t;
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => { if (!full) setBookingTime(t); }}
+                        disabled={full}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors flex flex-col items-center min-w-[68px] ${
+                          full
+                            ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
+                            : selected
+                            ? "bg-blue-500 text-white border-blue-500"
+                            : "bg-white text-slate-600 border-slate-300 hover:border-blue-400"
+                        }`}
+                      >
+                        <span>{t}</span>
+                        {full ? (
+                          <span className="text-[10px] mt-0.5">{s.slot_full_short}</span>
+                        ) : remaining !== null && remaining <= 3 ? (
+                          <span className={`text-[10px] mt-0.5 ${selected ? "text-white/80" : "text-orange-500"}`}>
+                            {fmt(s.slot_remaining, { n: remaining })}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -44,6 +44,7 @@ const menuItems: MenuItem[] = [
   { href: "/dashboard/stock", label: "สต็อก", icon: Boxes, roles: ["admin", "staff"] },
   { href: "/dashboard/packages", label: "แพ็คเกจ", icon: Package, roles: ["admin"] },
   { href: "/dashboard/bookings", label: "การจอง", icon: CalendarCheck, roles: ["admin", "staff"] },
+  { href: "/dashboard/slots", label: "สล็อตจองคิว", icon: CalendarCheck, roles: ["admin"] },
   { href: "/dashboard/payments", label: "การชำระ", icon: Wallet, roles: ["admin", "staff"] },
   { href: "/dashboard/users", label: "User", icon: UserCog, roles: ["admin"] },
   { href: "/dashboard/summary", label: "Summary", icon: BarChart3, roles: ["admin"] },

@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get("status");
     const daysParam = searchParams.get("days");
     const limitParam = searchParams.get("limit");
+    const fromParam = searchParams.get("from"); // YYYY-MM-DD (Bangkok)
+    const toParam = searchParams.get("to");     // YYYY-MM-DD (Bangkok)
 
     const where: Record<string, unknown> = {};
     if (statusParam) {
@@ -18,7 +20,16 @@ export async function GET(request: NextRequest) {
         ? { in: statusParam.split(",") }
         : statusParam;
     }
-    if (daysParam) {
+
+    // Explicit from/to wins over the rolling `days` window when both are
+    // supplied. Times are anchored to Asia/Bangkok so the range matches
+    // what the dashboard user picked on their date inputs.
+    if (fromParam || toParam) {
+      const orderDateFilter: Record<string, Date> = {};
+      if (fromParam) orderDateFilter.gte = new Date(`${fromParam}T00:00:00+07:00`);
+      if (toParam) orderDateFilter.lte = new Date(`${toParam}T23:59:59.999+07:00`);
+      where.orderDate = orderDateFilter;
+    } else if (daysParam) {
       const days = parseInt(daysParam, 10);
       if (!isNaN(days) && days > 0) {
         const from = new Date();

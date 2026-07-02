@@ -78,6 +78,11 @@ export default function LaundryPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("ทั้งหมด");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+  });
+  const [dateTo, setDateTo] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<{
     orderId: string;
@@ -110,7 +115,10 @@ export default function LaundryPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const res = await fetch("/api/orders?days=90&limit=500");
+      const params = new URLSearchParams({ limit: "500" });
+      if (dateFrom) params.set("from", dateFrom);
+      if (dateTo) params.set("to", dateTo);
+      const res = await fetch(`/api/orders?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
         setOrders(data);
@@ -120,7 +128,7 @@ export default function LaundryPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dateFrom, dateTo]);
 
   const fetchCustomers = useCallback(async () => {
     try {
@@ -630,13 +638,45 @@ ${settings.receiptHeader ? `<div class="center" style="margin-top:6px;font-size:
         ))}
       </div>
 
-      <input
-        type="text"
-        placeholder="ค้นหา เลขออเดอร์ / ชื่อลูกค้า / เบอร์โทร..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-4 py-2 border border-slate-300 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-400"
-      />
+      <div className="grid grid-cols-2 sm:grid-cols-[auto_auto_auto_1fr] gap-2 items-end mb-4">
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">ตั้งแต่วันที่</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-500 mb-1">ถึงวันที่</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const d = new Date();
+            const iso = d.toISOString().slice(0, 10);
+            setDateFrom(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`);
+            setDateTo(iso);
+          }}
+          className="px-3 py-2 rounded-lg border border-slate-300 text-xs text-slate-600 hover:bg-slate-50"
+        >
+          เดือนนี้
+        </button>
+        <input
+          type="text"
+          placeholder="ค้นหา เลขออเดอร์ / ชื่อลูกค้า / เบอร์โทร..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="col-span-2 sm:col-span-1 w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+        />
+      </div>
 
       {/* Mobile: Card Layout */}
       <div className="sm:hidden space-y-3">

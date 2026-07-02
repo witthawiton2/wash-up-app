@@ -34,9 +34,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const trimmedName = name.trim();
+
+    // If a row with this name already exists (possibly soft-deleted via
+    // DELETE), revive/update it instead of hitting the unique constraint.
+    const existing = await prisma.package.findUnique({ where: { name: trimmedName } });
+    if (existing) {
+      if (existing.active) {
+        return NextResponse.json(
+          { error: "Package with this name already exists" },
+          { status: 409 }
+        );
+      }
+      const revived = await prisma.package.update({
+        where: { id: existing.id },
+        data: {
+          description: description?.trim() || null,
+          totalItems,
+          validDays,
+          price,
+          active: true,
+        },
+      });
+      return NextResponse.json(revived);
+    }
+
     const pkg = await prisma.package.create({
       data: {
-        name: name.trim(),
+        name: trimmedName,
         description: description?.trim() || null,
         totalItems,
         validDays,
@@ -46,9 +71,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(pkg);
   } catch (error) {
-    console.error("Failed to create package:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to create package:", msg);
     return NextResponse.json(
-      { error: "Failed to create package" },
+      { error: "Failed to create package", detail: msg },
       { status: 500 }
     );
   }
@@ -80,9 +106,10 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(pkg);
   } catch (error) {
-    console.error("Failed to update package:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to update package:", msg);
     return NextResponse.json(
-      { error: "Failed to update package" },
+      { error: "Failed to update package", detail: msg },
       { status: 500 }
     );
   }

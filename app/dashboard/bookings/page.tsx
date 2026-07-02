@@ -25,6 +25,20 @@ const statusBadge: Record<string, string> = {
 
 type SlotKey = "morning" | "afternoon" | "evening" | "other";
 
+type MethodKey = "home" | "self" | "unknown";
+
+const METHOD_GROUPS: { key: MethodKey; label: string; icon: string; accent: string }[] = [
+  { key: "home",    label: "ฝากที่พัก",  icon: "🏠", accent: "bg-emerald-50 border-emerald-200 text-emerald-800" },
+  { key: "self",    label: "รับที่ร้าน", icon: "🏪", accent: "bg-sky-50 border-sky-200 text-sky-800" },
+  { key: "unknown", label: "ไม่ระบุ",    icon: "❓", accent: "bg-slate-50 border-slate-200 text-slate-700" },
+];
+
+function methodOf(deliveryMethod: string): MethodKey {
+  if (deliveryMethod === "ฝากที่พัก") return "home";
+  if (deliveryMethod === "รับด้วยตัวเอง") return "self";
+  return "unknown";
+}
+
 // Same slot boundaries the /my booking form uses so admin's grouping
 // matches what the customer picked on the LIFF side.
 const SLOTS: {
@@ -105,15 +119,19 @@ export default function BookingsPage() {
   })();
 
   const grouped = useMemo(() => {
-    const map: Record<SlotKey, Booking[]> = {
-      morning: [],
-      afternoon: [],
-      evening: [],
-      other: [],
+    const emptyMethods = (): Record<MethodKey, Booking[]> => ({ home: [], self: [], unknown: [] });
+    const map: Record<SlotKey, Record<MethodKey, Booking[]>> = {
+      morning: emptyMethods(),
+      afternoon: emptyMethods(),
+      evening: emptyMethods(),
+      other: emptyMethods(),
     };
-    for (const b of filtered) map[slotOf(b.requestedTime)].push(b);
+    for (const b of filtered) map[slotOf(b.requestedTime)][methodOf(b.deliveryMethod)].push(b);
     return map;
   }, [filtered]);
+
+  const slotTotal = (buckets: Record<MethodKey, Booking[]>) =>
+    buckets.home.length + buckets.self.length + buckets.unknown.length;
 
   return (
     <div>
@@ -169,8 +187,9 @@ export default function BookingsPage() {
       ) : (
         <div className="space-y-6">
           {SLOTS.map((slot) => {
-            const list = grouped[slot.key];
-            if (list.length === 0) return null;
+            const buckets = grouped[slot.key];
+            const total = slotTotal(buckets);
+            if (total === 0) return null;
             return (
               <section key={slot.key}>
                 <div className={`flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg border ${slot.accent}`}>
@@ -179,56 +198,68 @@ export default function BookingsPage() {
                     <span className="text-xs opacity-75">{slot.range}</span>
                   </div>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/70">
-                    {list.length} คิว
+                    {total} คิว
                   </span>
                 </div>
-                <div className="space-y-3">
-                  {list.map((b) => (
-                    <div key={b.orderId} className="card">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-xl font-bold text-blue-600 tabular-nums">{b.requestedTime}</span>
-                          <span className="font-bold text-slate-500 text-sm">{b.orderId}</span>
-                          <span className="ml-1 text-slate-600 text-sm">{b.customer}</span>
+
+                {METHOD_GROUPS.map((mg) => {
+                  const list = buckets[mg.key];
+                  if (list.length === 0) return null;
+                  return (
+                    <div key={mg.key} className="mb-3 last:mb-0">
+                      <div className={`flex items-center justify-between gap-3 mb-2 px-3 py-1.5 rounded-md border text-sm ${mg.accent}`}>
+                        <div className="flex items-center gap-2">
+                          <span>{mg.icon}</span>
+                          <span className="font-semibold">{mg.label}</span>
                         </div>
-                        <span className={`badge ${statusBadge[b.status] || "badge-gray"}`}>{b.status}</span>
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/70">
+                          {list.length}
+                        </span>
                       </div>
+                      <div className="space-y-3">
+                        {list.map((b) => (
+                          <div key={b.orderId} className="card">
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xl font-bold text-blue-600 tabular-nums">{b.requestedTime}</span>
+                                <span className="font-bold text-slate-500 text-sm">{b.orderId}</span>
+                                <span className="ml-1 text-slate-600 text-sm">{b.customer}</span>
+                              </div>
+                              <span className={`badge ${statusBadge[b.status] || "badge-gray"}`}>{b.status}</span>
+                            </div>
 
-                      <div className="grid grid-cols-2 gap-2 text-sm mb-2">
-                        <div>
-                          <span className="text-slate-400">วันที่จอง: </span>
-                          <span className="font-medium text-slate-700">{b.requestedDate}</span>
-                        </div>
-                        <div>
-                          <span className="text-slate-400">โทร: </span>
-                          <span className="text-slate-700">{b.phone || "-"}</span>
-                        </div>
-                        <div className="col-span-2">
-                          <span className="text-slate-400">ที่อยู่: </span>
-                          <span className="text-slate-700">{b.address || "-"}</span>
-                        </div>
+                            <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                              <div>
+                                <span className="text-slate-400">วันที่จอง: </span>
+                                <span className="font-medium text-slate-700">{b.requestedDate}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400">โทร: </span>
+                                <span className="text-slate-700">{b.phone || "-"}</span>
+                              </div>
+                              <div className="col-span-2">
+                                <span className="text-slate-400">ที่อยู่: </span>
+                                <span className="text-slate-700">{b.address || "-"}</span>
+                              </div>
+                            </div>
+
+                            {b.items.length > 0 && (
+                              <div className="text-xs text-slate-500 mb-1">
+                                {b.items.map((i) => `${i.name} x${i.qty}`).join(", ")}
+                              </div>
+                            )}
+
+                            {b.note && (
+                              <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 mt-1">
+                                {b.note}
+                              </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
-
-                      {b.deliveryMethod && (
-                        <div className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 mb-2">
-                          📦 {b.deliveryMethod}
-                        </div>
-                      )}
-
-                      {b.items.length > 0 && (
-                        <div className="text-xs text-slate-500 mb-1">
-                          {b.items.map((i) => `${i.name} x${i.qty}`).join(", ")}
-                        </div>
-                      )}
-
-                      {b.note && (
-                        <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 mt-1">
-                          {b.note}
-                        </div>
-                      )}
                     </div>
-                  ))}
-                </div>
+                  );
+                })}
               </section>
             );
           })}

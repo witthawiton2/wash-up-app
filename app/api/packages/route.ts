@@ -27,14 +27,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, description, totalItems, validDays, price } = body;
 
-    if (!name || !totalItems || !validDays || price === undefined) {
-      return NextResponse.json(
-        { error: "name, totalItems, validDays, and price are required" },
-        { status: 400 }
-      );
+    // Only `name` is truly required; per-piece packages leave totalItems
+    // and/or validDays at 0.
+    if (!name || typeof name !== "string" || !name.trim()) {
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
-
     const trimmedName = name.trim();
+    const items = Number(totalItems) || 0;
+    const days = Number(validDays) || 0;
+    const priceNum = Number(price) || 0;
 
     // If a row with this name already exists (possibly soft-deleted via
     // DELETE), revive/update it instead of hitting the unique constraint.
@@ -50,9 +51,9 @@ export async function POST(request: NextRequest) {
         where: { id: existing.id },
         data: {
           description: description?.trim() || null,
-          totalItems,
-          validDays,
-          price,
+          totalItems: items,
+          validDays: days,
+          price: priceNum,
           active: true,
         },
       });
@@ -63,9 +64,9 @@ export async function POST(request: NextRequest) {
       data: {
         name: trimmedName,
         description: description?.trim() || null,
-        totalItems,
-        validDays,
-        price,
+        totalItems: items,
+        validDays: days,
+        price: priceNum,
       },
     });
 

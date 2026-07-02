@@ -60,7 +60,7 @@ export default function PackagesPage() {
   };
 
   const handleSave = async () => {
-    if (!editing.name.trim() || !editing.totalItems || !editing.validDays) return;
+    if (!editing.name.trim()) return;
     try {
       const method = isEdit ? "PUT" : "POST";
       const res = await fetch("/api/packages", {
@@ -139,8 +139,8 @@ export default function PackagesPage() {
                   <tr key={pkg.id}>
                     <td className="font-medium">{pkg.name}</td>
                     <td className="text-slate-500">{pkg.description || "-"}</td>
-                    <td className="text-right">{pkg.totalItems}</td>
-                    <td className="text-right">{pkg.validDays}</td>
+                    <td className="text-right">{pkg.totalItems > 0 ? pkg.totalItems : "—"}</td>
+                    <td className="text-right">{pkg.validDays > 0 ? pkg.validDays : "—"}</td>
                     <td className="text-right font-medium">
                       {pkg.price.toLocaleString()}
                     </td>
@@ -201,11 +201,11 @@ export default function PackagesPage() {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">
-                จำนวนชิ้น
+                จำนวนชิ้น <span className="text-xs text-slate-400">(0 = รายชิ้น)</span>
               </label>
               <input
                 type="number"
-                min={1}
+                min={0}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={editing.totalItems}
                 onChange={(e) =>
@@ -218,11 +218,11 @@ export default function PackagesPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-600 mb-1">
-                อายุ (วัน)
+                อายุ (วัน) <span className="text-xs text-slate-400">(0 = ไม่หมดอายุ)</span>
               </label>
               <input
                 type="number"
-                min={1}
+                min={0}
                 className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={editing.validDays}
                 onChange={(e) =>

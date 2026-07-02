@@ -39,6 +39,9 @@ const STR: Record<Lang, Record<string, string>> = {
     select_package: "เลือกแพ็คเกจ",
     select_pkg_placeholder: "-- เลือกแพ็คเกจ --",
     pkg_option: "{name} — {items} ชิ้น / {days} วัน ({price}฿)",
+    pkg_option_per_piece: "{name} — จ่ายรายชิ้น ({price}฿)",
+    per_piece_label: "จ่ายรายชิ้น (ไม่มีจำนวนคงที่)",
+    no_expiry: "ไม่หมดอายุ",
     qty_n: "จำนวน: {n} ชิ้น",
     validity_n: "อายุ: {n} วัน",
     price_baht: "ราคา: {n}฿",
@@ -130,6 +133,9 @@ const STR: Record<Lang, Record<string, string>> = {
     select_package: "Select package",
     select_pkg_placeholder: "-- Select package --",
     pkg_option: "{name} — {items} items / {days} days ({price}฿)",
+    pkg_option_per_piece: "{name} — Pay per piece ({price}฿)",
+    per_piece_label: "Pay per piece (no fixed count)",
+    no_expiry: "No expiry",
     qty_n: "Items: {n}",
     validity_n: "Validity: {n} days",
     price_baht: "Price: {n}฿",
@@ -960,7 +966,9 @@ export default function MyPage() {
                     <option value="">{s.select_pkg_placeholder}</option>
                     {packages.map((p) => (
                       <option key={p.id} value={p.name}>
-                        {fmt(s.pkg_option, { name: p.name, items: p.totalItems, days: p.validDays, price: p.price.toLocaleString() })}
+                        {p.totalItems > 0
+                          ? fmt(s.pkg_option, { name: p.name, items: p.totalItems, days: p.validDays, price: p.price.toLocaleString() })
+                          : fmt(s.pkg_option_per_piece, { name: p.name, price: p.price.toLocaleString() })}
                       </option>
                     ))}
                   </select>
@@ -968,8 +976,16 @@ export default function MyPage() {
                   {pkg && (
                     <div className="mt-3 bg-blue-50 rounded-lg p-3 text-xs space-y-1">
                       {pkg.description && <p className="text-slate-500">{pkg.description}</p>}
-                      <p className="text-blue-700 font-medium">{fmt(s.qty_n, { n: pkg.totalItems })}</p>
-                      <p className="text-blue-700 font-medium">{fmt(s.validity_n, { n: pkg.validDays })}</p>
+                      {pkg.totalItems > 0 ? (
+                        <p className="text-blue-700 font-medium">{fmt(s.qty_n, { n: pkg.totalItems })}</p>
+                      ) : (
+                        <p className="text-blue-700 font-medium">{s.per_piece_label}</p>
+                      )}
+                      {pkg.validDays > 0 ? (
+                        <p className="text-blue-700 font-medium">{fmt(s.validity_n, { n: pkg.validDays })}</p>
+                      ) : (
+                        <p className="text-blue-700 font-medium">{s.no_expiry}</p>
+                      )}
                       <p className="text-blue-700 font-bold text-base">{fmt(s.price_baht, { n: pkg.price.toLocaleString() })}</p>
                     </div>
                   )}

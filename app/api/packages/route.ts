@@ -129,8 +129,11 @@ export async function DELETE(request: NextRequest) {
     }
 
     const pkg = await prisma.package.findUnique({ where: { id: Number(id) } });
+    // Idempotent delete: if the row is already gone (e.g. deleted from
+    // another tab, or the UI is showing a stale list), just report success
+    // so the client can refresh its list without a scary error toast.
     if (!pkg) {
-      return NextResponse.json({ error: "Package not found" }, { status: 404 });
+      return NextResponse.json({ success: true, alreadyGone: true });
     }
 
     // Customer.package holds the package NAME (plain string, not a FK).

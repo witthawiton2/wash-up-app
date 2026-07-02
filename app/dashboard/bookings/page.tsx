@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Pagination, { usePagination } from "@/components/Pagination";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePolling } from "@/lib/use-polling";
 
 interface Booking {
@@ -23,6 +22,32 @@ const statusBadge: Record<string, string> = {
   "พร้อมส่ง": "badge-green",
   "ส่งแล้ว": "badge-gray",
 };
+
+type SlotKey = "morning" | "afternoon" | "evening" | "other";
+
+// Same slot boundaries the /my booking form uses so admin's grouping
+// matches what the customer picked on the LIFF side.
+const SLOTS: {
+  key: SlotKey;
+  label: string;
+  range: string;
+  accent: string;
+}[] = [
+  { key: "morning",   label: "ช่วงเช้า",  range: "09:00-12:00", accent: "bg-amber-50 border-amber-200 text-amber-800" },
+  { key: "afternoon", label: "ช่วงบ่าย",  range: "12:00-18:00", accent: "bg-blue-50 border-blue-200 text-blue-800" },
+  { key: "evening",   label: "ช่วงเย็น",  range: "18:00-20:30", accent: "bg-indigo-50 border-indigo-200 text-indigo-800" },
+  { key: "other",     label: "อื่นๆ",     range: "นอกช่วงหลัก", accent: "bg-slate-50 border-slate-200 text-slate-700" },
+];
+
+function slotOf(time: string): SlotKey {
+  // requestedTime is "HH:MM" zero-padded.
+  const [h] = time.split(":").map((n) => parseInt(n, 10));
+  if (isNaN(h)) return "other";
+  if (h >= 9 && h < 12) return "morning";
+  if (h >= 12 && h < 18) return "afternoon";
+  if (h >= 18 && h < 21) return "evening";
+  return "other";
+}
 
 const todayIso = () => {
   const d = new Date();
@@ -79,7 +104,16 @@ export default function BookingsPage() {
     return [...list].sort((a, b) => a.requestedTime.localeCompare(b.requestedTime));
   })();
 
-  const { paged, currentPage, totalPages, totalItems, itemsPerPage, setCurrentPage } = usePagination(filtered, 20);
+  const grouped = useMemo(() => {
+    const map: Record<SlotKey, Booking[]> = {
+      morning: [],
+      afternoon: [],
+      evening: [],
+      other: [],
+    };
+    for (const b of filtered) map[slotOf(b.requestedTime)].push(b);
+    return map;
+  }, [filtered]);
 
   return (
     <div>
@@ -133,58 +167,71 @@ export default function BookingsPage() {
           {selectedDate ? `ไม่มีคิวในวันที่ ${thaiSelected}` : "ไม่มีรายการจอง"}
         </div>
       ) : (
-        <div className="space-y-3">
-          {paged.map((b) => (
-            <div key={b.orderId} className="card">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <span className="font-bold text-blue-600 text-lg">{b.orderId}</span>
-                  <span className="ml-2 text-slate-600">{b.customer}</span>
+        <div className="space-y-6">
+          {SLOTS.map((slot) => {
+            const list = grouped[slot.key];
+            if (list.length === 0) return null;
+            return (
+              <section key={slot.key}>
+                <div className={`flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg border ${slot.accent}`}>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-base font-bold">{slot.label}</span>
+                    <span className="text-xs opacity-75">{slot.range}</span>
+                  </div>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/70">
+                    {list.length} คิว
+                  </span>
                 </div>
-                <span className={`badge ${statusBadge[b.status] || "badge-gray"}`}>{b.status}</span>
-              </div>
+                <div className="space-y-3">
+                  {list.map((b) => (
+                    <div key={b.orderId} className="card">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-xl font-bold text-blue-600 tabular-nums">{b.requestedTime}</span>
+                          <span className="font-bold text-slate-500 text-sm">{b.orderId}</span>
+                          <span className="ml-1 text-slate-600 text-sm">{b.customer}</span>
+                        </div>
+                        <span className={`badge ${statusBadge[b.status] || "badge-gray"}`}>{b.status}</span>
+                      </div>
 
-              <div className="grid grid-cols-2 gap-2 text-sm mb-2">
-                <div>
-                  <span className="text-slate-400">วันที่จอง: </span>
-                  <span className="font-medium text-slate-700">{b.requestedDate}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">เวลา: </span>
-                  <span className="font-medium text-slate-700">{b.requestedTime}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">โทร: </span>
-                  <span className="text-slate-700">{b.phone || "-"}</span>
-                </div>
-                <div>
-                  <span className="text-slate-400">วันที่สั่ง: </span>
-                  <span className="text-slate-700">{b.orderDate}</span>
-                </div>
-                <div className="col-span-2">
-                  <span className="text-slate-400">ที่อยู่: </span>
-                  <span className="text-slate-700">{b.address || "-"}</span>
-                </div>
-              </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                        <div>
+                          <span className="text-slate-400">วันที่จอง: </span>
+                          <span className="font-medium text-slate-700">{b.requestedDate}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">โทร: </span>
+                          <span className="text-slate-700">{b.phone || "-"}</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-slate-400">ที่อยู่: </span>
+                          <span className="text-slate-700">{b.address || "-"}</span>
+                        </div>
+                      </div>
 
-              {b.deliveryMethod && (
-                <div className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 mb-2">
-                  📦 {b.deliveryMethod}
-                </div>
-              )}
+                      {b.deliveryMethod && (
+                        <div className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 mb-2">
+                          📦 {b.deliveryMethod}
+                        </div>
+                      )}
 
-              <div className="text-xs text-slate-500 mb-1">
-                {b.items.map((i) => `${i.name} x${i.qty}`).join(", ")}
-              </div>
+                      {b.items.length > 0 && (
+                        <div className="text-xs text-slate-500 mb-1">
+                          {b.items.map((i) => `${i.name} x${i.qty}`).join(", ")}
+                        </div>
+                      )}
 
-              {b.note && (
-                <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 mt-1">
-                  {b.note}
+                      {b.note && (
+                        <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 mt-1">
+                          {b.note}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
-          ))}
-          <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} totalItems={totalItems} itemsPerPage={itemsPerPage} />
+              </section>
+            );
+          })}
         </div>
       )}
     </div>

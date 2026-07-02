@@ -140,13 +140,38 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
-    await prisma.customer.delete({ where: { id: Number(id) } });
+    const customerId = Number(id);
+    const customer = await prisma.customer.findUnique({
+      where: { id: customerId },
+      select: { id: true, name: true, customerCode: true },
+    });
+    if (!customer) {
+      return NextResponse.json({ success: true, alreadyGone: true });
+    }
+
+    // Snapshot the customer's display name onto every order that still
+    // points at them, so /dashboard/laundry and receipts keep the name
+    // label after the FK's ON DELETE SET NULL fires. Do the snapshot
+    // and the delete in a single transaction so we don't strand orders
+    // with a null customer + null walkInName mid-run.
+    const displayName = customer.customerCode
+      ? `${customer.customerCode} ${customer.name}`
+      : customer.name;
+
+    await prisma.$transaction([
+      prisma.order.updateMany({
+        where: { customerId, walkInName: null },
+        data: { walkInName: displayName },
+      }),
+      prisma.customer.delete({ where: { id: customerId } }),
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete customer:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to delete customer:", msg);
     return NextResponse.json(
-      { error: "Failed to delete customer" },
+      { error: "Failed to delete customer", detail: msg },
       { status: 500 }
     );
   }

@@ -7,11 +7,10 @@ export async function GET() {
       where: { active: true },
       orderBy: { price: "asc" },
     });
-    // Package list rarely changes — cache for a minute with SWR.
+    // No cache — the dashboard needs mutations to appear immediately, and
+    // this list is small enough that caching doesn't buy much.
     return NextResponse.json(packages, {
-      headers: {
-        "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
-      },
+      headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
     console.error("Failed to fetch packages:", error);

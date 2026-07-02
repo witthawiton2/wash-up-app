@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Spinner from "@/components/Spinner";
+import { usePolling } from "@/lib/use-polling";
 
 interface Payment {
   orderId: string;
@@ -55,9 +56,9 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     fetchPayments();
-    const interval = setInterval(fetchPayments, 30000);
-    return () => clearInterval(interval);
   }, [fetchPayments]);
+
+  usePolling(fetchPayments, 30000);
 
   const handleAction = async (orderId: string, action: "confirm" | "reject") => {
     setSaving(true);

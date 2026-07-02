@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth, Role } from "@/lib/auth-context";
 import { useSettings } from "@/lib/settings-context";
+import { usePolling } from "@/lib/use-polling";
 import {
   LayoutDashboard,
   Users,
@@ -88,9 +89,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   useEffect(() => {
     fetchBadges();
-    const interval = setInterval(fetchBadges, 30000); // refresh every 30s
-    return () => clearInterval(interval);
   }, [fetchBadges]);
+
+  usePolling(fetchBadges, 30000);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";

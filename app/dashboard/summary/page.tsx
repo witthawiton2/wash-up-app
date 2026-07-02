@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { usePolling } from "@/lib/use-polling";
 
 interface ItemBreakdown {
   name: string;
@@ -102,6 +103,8 @@ export default function SummaryPage() {
   useEffect(() => {
     fetchSummary();
   }, [fetchSummary]);
+
+  usePolling(fetchSummary, 30000);
 
   const maxRevenue = Math.max(...last7.map((d) => d.revenue), 1);
   const maxItems = Math.max(...last7.map((d) => d.items), 1);

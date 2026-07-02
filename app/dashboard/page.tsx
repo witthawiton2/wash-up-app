@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import { usePolling } from "@/lib/use-polling";
 import { ClipboardList, Wallet, CalendarCheck, Package, TrendingUp, Users } from "lucide-react";
 
 interface ChartData {
@@ -97,6 +98,8 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  usePolling(fetchData, 30000);
 
   const maxRevenue = Math.max(...last7.map((d) => d.revenue), 1);
   const maxOrders = Math.max(...last7.map((d) => d.orders), 1);

@@ -100,13 +100,30 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await prisma.package.delete({ where: { id: Number(id) } });
+    const pkg = await prisma.package.findUnique({ where: { id: Number(id) } });
+    if (!pkg) {
+      return NextResponse.json({ error: "Package not found" }, { status: 404 });
+    }
 
+    // Customer.package holds the package NAME (plain string, not a FK).
+    // If any customer still points at this package we soft-delete instead
+    // so historical data keeps rendering.
+    const inUse = await prisma.customer.count({ where: { package: pkg.name } });
+    if (inUse > 0) {
+      const disabled = await prisma.package.update({
+        where: { id: pkg.id },
+        data: { active: false },
+      });
+      return NextResponse.json({ success: true, softDeleted: true, inUse, pkg: disabled });
+    }
+
+    await prisma.package.delete({ where: { id: pkg.id } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete package:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("Failed to delete package:", msg);
     return NextResponse.json(
-      { error: "Failed to delete package" },
+      { error: "Failed to delete package", detail: msg },
       { status: 500 }
     );
   }

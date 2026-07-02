@@ -113,9 +113,14 @@ export default function CustomerPage() {
   const handleSelectPackage = (pkgName: string) => {
     const pkg = packages.find((p) => p.name === pkgName);
     if (pkg) {
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + pkg.validDays);
-      const endDateStr = `${String(endDate.getDate()).padStart(2, "0")}/${String(endDate.getMonth() + 1).padStart(2, "0")}/${endDate.getFullYear()}`;
+      // validDays === 0 means "no expiry" (per-piece plans) — leave the
+      // endDate blank so the customer never expires.
+      let endDateStr = "";
+      if (pkg.validDays > 0) {
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + pkg.validDays);
+        endDateStr = `${String(endDate.getDate()).padStart(2, "0")}/${String(endDate.getMonth() + 1).padStart(2, "0")}/${endDate.getFullYear()}`;
+      }
       setEditing({
         ...editing,
         package: pkgName,
@@ -356,7 +361,9 @@ export default function CustomerPage() {
               <option value="">-- ไม่มีแพ็คเกจ --</option>
               {packages.map((p) => (
                 <option key={p.id} value={p.name}>
-                  {p.name} — {p.totalItems} ชิ้น / {p.validDays} วัน ({p.price.toLocaleString()}฿)
+                  {p.totalItems > 0
+                    ? `${p.name} — ${p.totalItems} ชิ้น / ${p.validDays > 0 ? `${p.validDays} วัน` : "ไม่หมดอายุ"} (${p.price.toLocaleString()}฿)`
+                    : `${p.name} — จ่ายรายชิ้น (${p.price.toLocaleString()}฿)`}
                 </option>
               ))}
             </select>

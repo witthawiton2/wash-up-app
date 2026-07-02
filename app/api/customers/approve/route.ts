@@ -19,6 +19,11 @@ export async function POST(request: NextRequest) {
       where: { name: customer.package || "", active: true },
     });
 
+    // validDays === 0 marks a "no-expiry" package (typically per-piece
+    // plans). We keep endDate as null in that case so the expiry alerts
+    // in /api/orders never fire and receipts render "-".
+    const validDays = pkgData?.validDays || 0;
+
     if (type === "renew") {
       // Renew: add new package items on top of the current balance, keeping
       // any negative balance so customers who overdrew their previous
@@ -28,8 +33,8 @@ export async function POST(request: NextRequest) {
       const baseDate = customer.endDate && customer.endDate > new Date()
         ? customer.endDate
         : new Date();
-      const newEndDate = pkgData
-        ? new Date(baseDate.getTime() + pkgData.validDays * 24 * 60 * 60 * 1000)
+      const newEndDate = pkgData && validDays > 0
+        ? new Date(baseDate.getTime() + validDays * 24 * 60 * 60 * 1000)
         : null;
 
       const updated = await prisma.customer.update({
@@ -46,8 +51,8 @@ export async function POST(request: NextRequest) {
 
     // Default: approve new customer
     const remaining = pkgData?.totalItems || 0;
-    const endDate = pkgData
-      ? new Date(Date.now() + pkgData.validDays * 24 * 60 * 60 * 1000)
+    const endDate = pkgData && validDays > 0
+      ? new Date(Date.now() + validDays * 24 * 60 * 60 * 1000)
       : null;
 
     const updated = await prisma.customer.update({

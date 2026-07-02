@@ -93,7 +93,7 @@ export async function GET(
           discount: dbOrder.discount,
           packageExpiry: dbOrder.customer?.endDate
             ? formatDate(dbOrder.customer.endDate)
-            : "-",
+            : "ไม่หมดอายุ",
           packageRemaining: dbOrder.customer?.remaining ?? 0,
         };
       }

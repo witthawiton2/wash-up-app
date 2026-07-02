@@ -799,7 +799,9 @@ export default function MyPage() {
               </div>
               <div className="bg-white/10 rounded-xl p-3 text-center">
                 <p className="text-[10px] text-blue-300/60 uppercase tracking-wider">{s.expiry_short}</p>
-                <p className="font-bold text-xs mt-1.5">{customer.endDate || "-"}</p>
+                <p className="font-bold text-xs mt-1.5">
+                  {customer.endDate && customer.endDate !== "-" ? customer.endDate : s.no_expiry}
+                </p>
               </div>
             </div>
           </div>

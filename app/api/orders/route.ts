@@ -1,9 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
 import { formatDateTime } from "@/lib/timezone";
 import { getBaseUrl } from "@/lib/base-url";
 import { sendCustomerPush } from "@/lib/push";
+
+// Returns the next sequential 6-digit order number, computed from the DB's
+// current maximum (non-digit characters stripped). The DB is the source of
+// truth — the client can only see a filtered/paginated slice of orders.
+async function nextOrderId(): Promise<string> {
+  const rows = (await prisma.$queryRawUnsafe(
+    `SELECT MAX(CAST(NULLIF(regexp_replace("orderId", '\\D', '', 'g'), '') AS INTEGER)) AS max FROM "Order"`
+  )) as { max: number | null }[];
+  const lastNum = rows?.[0]?.max ?? 0;
+  return String(lastNum + 1).padStart(6, "0");
+}
+
+// Creates an order, retrying with the next available number if the requested
+// orderId is already taken. Collisions are expected: the client derives the
+// number from a date-filtered list, and two cashiers can save at the same
+// instant. Returns the created order (with the id actually assigned).
+async function createOrderWithUniqueId(
+  requestedOrderId: string,
+  data: Omit<Prisma.OrderUncheckedCreateInput, "orderId">
+) {
+  let candidate = requestedOrderId;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    try {
+      return await prisma.order.create({
+        data: { ...data, orderId: candidate },
+        include: { customer: true, items: true },
+      });
+    } catch (e) {
+      const isOrderIdConflict =
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        (Array.isArray(e.meta?.target)
+          ? (e.meta.target as string[]).includes("orderId")
+          : true);
+      if (!isOrderIdConflict) throw e;
+      candidate = await nextOrderId();
+    }
+  }
+  throw new Error("Could not allocate a unique orderId after several retries");
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -115,38 +156,40 @@ export async function POST(request: NextRequest) {
     // Run the order insert and the package-deduction lookup in parallel.
     // For walk-in orders skip the lookup entirely — no package to deduct.
     const itemNames = items.map((i: { name: string }) => i.name);
+    const orderData = {
+      customerId: customerId || null,
+      walkInName: customerId ? null : (walkInName || null),
+      status: "รอซักรีด",
+      totalAmount,
+      hangersOwned: hangersOwned || 0,
+      hangersBought: hBought,
+      discount: disc,
+      checkPhotos: checkPhotos || null,
+      note: note || null,
+      items: {
+        create: items.map(
+          (i: { name: string; qty: number; price: number }) => ({
+            itemName: i.name,
+            quantity: i.qty,
+            price: i.price,
+            total: i.qty * i.price,
+          })
+        ),
+      },
+    };
     const [serviceItems, order] = await Promise.all([
       customerId
         ? prisma.serviceItem.findMany({
             where: { name: { in: itemNames }, inPackage: true, active: true },
           })
         : Promise.resolve([] as { name: string; packageDeduction: number }[]),
-      prisma.order.create({
-        data: {
-          orderId,
-          customerId: customerId || null,
-          walkInName: customerId ? null : (walkInName || null),
-          status: "รอซักรีด",
-          totalAmount,
-          hangersOwned: hangersOwned || 0,
-          hangersBought: hBought,
-          discount: disc,
-          checkPhotos: checkPhotos || null,
-          note: note || null,
-          items: {
-            create: items.map(
-              (i: { name: string; qty: number; price: number }) => ({
-                itemName: i.name,
-                quantity: i.qty,
-                price: i.price,
-                total: i.qty * i.price,
-              })
-            ),
-          },
-        },
-        include: { customer: true, items: true },
-      }),
+      createOrderWithUniqueId(orderId, orderData),
     ]);
+
+    // The client may have suggested an orderId that was already taken (it
+    // derives the number from a filtered/paginated list); the DB is the
+    // source of truth, so downstream writes use the id actually assigned.
+    const finalOrderId = order.orderId;
 
     const serviceMap = new Map(serviceItems.map((s) => [s.name, s.packageDeduction]));
 
@@ -180,7 +223,7 @@ export async function POST(request: NextRequest) {
         await Promise.all([
           pkgPrice > 0
             ? prisma.order.update({
-                where: { orderId },
+                where: { orderId: finalOrderId },
                 data: {
                   totalAmount: { increment: pkgPrice },
                   note: (order.note ? order.note + " | " : "") + `ค่าต่อแพ็คเกจ ${updatedCustomer.package} ${pkgPrice}฿`,
@@ -243,7 +286,7 @@ export async function POST(request: NextRequest) {
       try {
         const urls: string[] = JSON.parse(checkPhotos);
         if (Array.isArray(urls) && urls.length > 0) {
-          const message = `📸 พบสิ่งของในเสื้อผ้าของคุณ\n\nออเดอร์: ${orderId}\nทางร้านพบสิ่งของในกระเป๋าเสื้อผ้า รบกวนตรวจสอบและรับคืนได้ที่ร้านครับ`;
+          const message = `📸 พบสิ่งของในเสื้อผ้าของคุณ\n\nออเดอร์: ${finalOrderId}\nทางร้านพบสิ่งของในกระเป๋าเสื้อผ้า รบกวนตรวจสอบและรับคืนได้ที่ร้านครับ`;
           pushTextWithImages(order.customer.lineUserId, message, urls).catch((err) =>
             console.error("Failed to send LINE forgot-items notification:", err)
           );

@@ -336,6 +336,10 @@ export default function LaundryPage() {
           }),
         });
         if (res.ok) {
+          // The server guarantees a unique order number and may have
+          // assigned a different one than we suggested — use what it saved.
+          const created = await res.json().catch(() => null);
+          const savedOrderId = created?.orderId || editing.orderId;
           setModalOpen(false);
           // Refresh data in background — don't block modal close
           Promise.all([fetchOrders(), fetchCustomers()]).catch(() => {});
@@ -347,7 +351,7 @@ export default function LaundryPage() {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                orderId: editing.orderId,
+                orderId: savedOrderId,
                 lineUserId: cust.lineUserId,
               }),
             }).catch(() => {});
@@ -361,7 +365,7 @@ export default function LaundryPage() {
               : subForPrint;
             printReceipt({
               id: 0,
-              orderId: editing.orderId,
+              orderId: savedOrderId,
               customerId: editing.customerId,
               customer: cust
                 ? `${cust.customerCode ? cust.customerCode + " " : ""}${cust.name}`

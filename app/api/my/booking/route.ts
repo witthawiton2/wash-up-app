@@ -12,6 +12,8 @@ import {
   bangkokDayRange,
   extractActivityFromNote,
   formatSlotTimeFromDate,
+  isDateClosed,
+  parseClosedWeekdays,
   type SlotActivity,
   type SlotMethod,
 } from "@/lib/booking-slots";
@@ -82,6 +84,15 @@ export async function POST(request: NextRequest) {
       return apiError(lang, "missing_fields", 400);
     }
 
+    // Reject bookings on weekdays the shop is closed (e.g. every Sunday).
+    const shopSettings = await prisma.settings.findUnique({
+      where: { id: 1 },
+      select: { closedWeekdays: true },
+    });
+    if (isDateClosed(date, parseClosedWeekdays(shopSettings?.closedWeekdays))) {
+      return apiError(lang, "shop_closed", 400);
+    }
+
     const methodLabels: Record<string, string> = {
       self: "รับด้วยตัวเอง",
       home: "ฝากที่พัก",
@@ -117,6 +128,19 @@ export async function POST(request: NextRequest) {
     // the shop can have the order ready before the customer arrives.
     if (activityKey === "receive" && requestedDeliveryDate.getTime() - Date.now() < 60 * 60 * 1000) {
       return apiError(lang, "booking_too_soon", 400);
+    }
+
+    // A pickup can only be booked against a finished order ("พร้อมส่ง"). The
+    // client only lists ready orders, but re-check here so a direct call can't
+    // schedule a pickup for laundry that's still being washed.
+    if (activityKey === "receive") {
+      if (!orderId) return apiError(lang, "missing_fields", 400);
+      const target = await prisma.order.findFirst({
+        where: { orderId, customerId: customer.id },
+        select: { status: true },
+      });
+      if (!target) return apiError(lang, "order_not_found", 404);
+      if (target.status !== "พร้อมส่ง") return apiError(lang, "order_not_ready", 400);
     }
     const range = bangkokDayRange(date);
 

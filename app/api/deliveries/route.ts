@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
-import { formatDate } from "@/lib/timezone";
+import { formatDate, formatDateTime } from "@/lib/timezone";
 import { parseDeliveryPhotos } from "@/lib/delivery-photos";
 import { sendCustomerPush } from "@/lib/push";
 
@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
         totalAmount: true,
         orderDate: true,
         walkInName: true,
+        requestedDeliveryDate: true,
+        deliveryMethod: true,
         customer: { select: { name: true, phone: true, address: true } },
         delivery: { select: { id: true, address: true, photoUrl: true } },
         items: { select: { itemName: true, quantity: true, price: true } },
@@ -49,6 +51,10 @@ export async function GET(request: NextRequest) {
       address: o.delivery?.address || o.customer?.address || "",
       status: o.status,
       date: formatDate(o.orderDate),
+      // The customer's booked appointment (when they want it delivered/picked
+      // up) so the driver can plan the route by time. null = no booking.
+      requestedAt: o.requestedDeliveryDate ? formatDateTime(o.requestedDeliveryDate) : null,
+      deliveryMethod: o.deliveryMethod || null,
       items: o.items.map((i) => ({
         name: i.itemName,
         qty: i.quantity,

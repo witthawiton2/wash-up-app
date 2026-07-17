@@ -26,7 +26,9 @@ type Key =
   | "booking_failed"
   | "cancel_failed"
   | "slot_full"
-  | "booking_too_soon";
+  | "booking_too_soon"
+  | "order_not_ready"
+  | "shop_closed";
 
 const MESSAGES: Record<Lang, Record<Key, string>> = {
   th: {
@@ -45,6 +47,8 @@ const MESSAGES: Record<Lang, Record<Key, string>> = {
     cancel_failed: "ยกเลิกคิวไม่สำเร็จ",
     slot_full: "ช่วงเวลานี้เต็มแล้ว กรุณาเลือกเวลาอื่น",
     booking_too_soon: "การรับผ้าคืนต้องจองล่วงหน้าอย่างน้อย 1 ชั่วโมง กรุณาเลือกเวลาอื่น",
+    order_not_ready: "ออเดอร์นี้ยังซักไม่เสร็จ ยังรับคืนไม่ได้ครับ",
+    shop_closed: "ร้านปิดในวันที่เลือก กรุณาเลือกวันอื่น",
   },
   en: {
     customer_not_found: "Customer not found — please register first",
@@ -62,6 +66,8 @@ const MESSAGES: Record<Lang, Record<Key, string>> = {
     cancel_failed: "Could not cancel booking",
     slot_full: "This slot is full — please pick another time",
     booking_too_soon: "Pickups must be booked at least 1 hour in advance — please pick another time",
+    order_not_ready: "This order isn't finished yet and can't be picked up",
+    shop_closed: "The shop is closed on the selected day — please pick another date",
   },
 };
 

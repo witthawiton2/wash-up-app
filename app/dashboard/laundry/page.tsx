@@ -55,7 +55,7 @@ interface ServiceItemOption {
   packageDeduction: number;
 }
 
-const filters = ["ทั้งหมด", "รอซักรีด", "พร้อมส่ง"];
+const filters = ["ทั้งหมด", "รอซักรีด", "พร้อมส่ง", "ส่งแล้ว"];
 const statusBadge: Record<string, string> = {
   "รอซักรีด": "badge-blue",
   "พร้อมส่ง": "badge-green",

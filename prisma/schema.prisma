@@ -200,6 +200,7 @@ model Settings {
   promptpayId     String?
   receiptHeader   String?
   receiptFooter   String?
+  closedWeekdays  String?  // JSON array of weekday indices (0=Sun…6=Sat) the shop is closed
   updatedAt       DateTime @updatedAt
 }
 

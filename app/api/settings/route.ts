@@ -34,6 +34,7 @@ export async function PUT(request: NextRequest) {
       "promptpayId",
       "receiptHeader",
       "receiptFooter",
+      "closedWeekdays",
     ] as const;
     const update: Record<string, string | null> = {};
     for (const f of FIELDS) {

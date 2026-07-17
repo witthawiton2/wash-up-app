@@ -7,12 +7,15 @@ import {
   bangkokDayRange,
   extractActivityFromNote,
   formatSlotTimeFromDate,
+  parseClosedWeekdays,
+  isDateClosed,
 } from "@/lib/booking-slots";
 import { apiError, getRequestLang } from "@/lib/api-i18n";
 
 // Response shape:
-//   { "9:00": { send: { used, cap, full }, receive: { used, cap, full } }, ... }
-// cap is null when the admin hasn't set a cap for that (time, activity).
+//   { closed: boolean, slots: { "9:00": { send: {...}, receive: {...} }, ... } }
+// closed === true when the shop is shut that weekday (all slots unavailable).
+// cap is null when the admin hasn't set a cap for that (time, activity);
 // full is `used >= cap` when cap != null, else false.
 
 export async function GET(request: NextRequest) {
@@ -22,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (!date) return apiError(lang, "missing_fields", 400);
 
     const range = bangkokDayRange(date);
-    const [orders, caps] = await Promise.all([
+    const [orders, caps, settings] = await Promise.all([
       prisma.order.findMany({
         where: { requestedDeliveryDate: { gte: range.gte, lte: range.lte } },
         select: { requestedDeliveryDate: true, note: true },
@@ -32,7 +35,10 @@ export async function GET(request: NextRequest) {
         where: { date: { in: ["", date] } },
         select: { date: true, time: true, activity: true, capacity: true },
       }),
+      prisma.settings.findUnique({ where: { id: 1 }, select: { closedWeekdays: true } }),
     ]);
+
+    const closed = isDateClosed(date, parseClosedWeekdays(settings?.closedWeekdays));
 
     // Count bookings by (time, activity), reading the activity back from the
     // booking segment stored in each order's note.
@@ -57,22 +63,23 @@ export async function GET(request: NextRequest) {
       if (c.date === date || !row.has(activity)) row.set(activity, c.capacity);
     }
 
-    const out: Record<string, Record<SlotActivity, { used: number; cap: number | null; full: boolean }>> = {};
+    const slots: Record<string, Record<SlotActivity, { used: number; cap: number | null; full: boolean }>> = {};
     for (const time of SLOT_TIMES) {
-      out[time] = { send: { used: 0, cap: null, full: false }, receive: { used: 0, cap: null, full: false } };
+      slots[time] = { send: { used: 0, cap: null, full: false }, receive: { used: 0, cap: null, full: false } };
       for (const activity of SLOT_ACTIVITIES) {
         const u = used.get(time)?.get(activity) ?? 0;
         const capVal = capMap.get(time)?.get(activity);
         const cap = capVal === undefined ? null : capVal;
-        out[time][activity] = {
+        slots[time][activity] = {
           used: u,
           cap,
-          full: cap !== null && u >= cap,
+          // On a closed weekday every slot is unavailable regardless of caps.
+          full: closed || (cap !== null && u >= cap),
         };
       }
     }
 
-    return NextResponse.json(out, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({ closed, slots }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Failed to compute slot availability:", error);
     return apiError(lang, "generic_error", 500);

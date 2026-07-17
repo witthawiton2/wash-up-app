@@ -10,6 +10,8 @@ interface Delivery {
   address: string;
   status: string;
   date: string;
+  requestedAt: string | null;
+  deliveryMethod: string | null;
   totalAmount: number;
   items: { name: string; qty: number }[];
 }
@@ -20,6 +22,11 @@ const STATUS_COLORS: Record<string, string> = {
   "ส่งแล้ว": "#94a3b8",
 };
 
+const METHOD_LABELS: Record<string, string> = {
+  home: "🏠 ฝากที่พัก",
+  self: "🏪 รับเองที่ร้าน",
+};
+
 export default function DriverHome() {
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,7 +35,6 @@ export default function DriverHome() {
   const [submitPhoto, setSubmitPhoto] = useState<File | null>(null);
   const [submitPreview, setSubmitPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [enRouteId, setEnRouteId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -49,24 +55,6 @@ export default function DriverHome() {
   const filtered = filter === "active"
     ? deliveries.filter((d) => d.status !== "ส่งแล้ว")
     : deliveries;
-
-  const markEnRoute = async (d: Delivery) => {
-    if (enRouteId) return; // guard against double-tap
-    setEnRouteId(d.orderId);
-    try {
-      const res = await fetch("/api/deliveries", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: d.orderId, status: "กำลังจัดส่ง" }),
-      });
-      if (res.ok) await load();
-      else alert("อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่");
-    } catch {
-      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
-    } finally {
-      setEnRouteId(null);
-    }
-  };
 
   const openComplete = (d: Delivery) => {
     setSubmitTarget(d);
@@ -161,6 +149,21 @@ export default function DriverHome() {
                   </span>
                 </div>
 
+                {(d.requestedAt || d.deliveryMethod) && (
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {d.requestedAt && (
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+                        🗓 นัด: {d.requestedAt}
+                      </span>
+                    )}
+                    {d.deliveryMethod && METHOD_LABELS[d.deliveryMethod] && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg bg-slate-50 text-slate-600 border border-slate-200">
+                        {METHOD_LABELS[d.deliveryMethod]}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {d.address && (
                   <div className="text-sm text-slate-600 mb-2">📍 {d.address}</div>
                 )}
@@ -190,23 +193,13 @@ export default function DriverHome() {
                   )}
                 </div>
 
-                {d.status === "พร้อมส่ง" && (
-                  <button
-                    onClick={() => markEnRoute(d)}
-                    disabled={enRouteId === d.orderId}
-                    className="mt-2 w-full py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50"
-                    style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}
-                  >
-                    🚚 เริ่มจัดส่ง
-                  </button>
-                )}
-                {d.status === "กำลังจัดส่ง" && (
+                {d.status !== "ส่งแล้ว" && (
                   <button
                     onClick={() => openComplete(d)}
                     className="mt-2 w-full py-2.5 rounded-xl text-white text-sm font-semibold"
                     style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}
                   >
-                    ✅ ส่งแล้ว
+                    📷 ถ่ายรูปปิดงาน
                   </button>
                 )}
               </div>

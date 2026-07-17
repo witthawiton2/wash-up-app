@@ -18,6 +18,9 @@ const ACTIVITY_META: Record<SlotActivity, { label: string; icon: string }> = {
   receive: { label: "รับเสื้อผ้าคืน", icon: "👕" },
 };
 
+// Weekday labels indexed 0=Sunday … 6=Saturday, matching JS getUTCDay().
+const WEEKDAY_LABELS = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+
 function emptyCapMap(): CapMap {
   const out: CapMap = {};
   for (const t of SLOT_TIMES) out[t] = { send: "", receive: "" };
@@ -43,8 +46,50 @@ export default function BookingSlotsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [closedDays, setClosedDays] = useState<number[]>([]);
+  const [savingDays, setSavingDays] = useState(false);
+  const [daysSaved, setDaysSaved] = useState(false);
 
   const isOverride = editDate !== "";
+
+  // Load the shop's weekly closed days (stored on Settings.closedWeekdays).
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d?.closedWeekdays) return;
+        try {
+          const arr = JSON.parse(d.closedWeekdays);
+          if (Array.isArray(arr)) setClosedDays(arr.filter((n) => typeof n === "number"));
+        } catch { /* ignore malformed */ }
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleClosedDay = (dow: number) => {
+    setDaysSaved(false);
+    setClosedDays((prev) =>
+      prev.includes(dow) ? prev.filter((d) => d !== dow) : [...prev, dow].sort((a, b) => a - b)
+    );
+  };
+
+  const saveClosedDays = async () => {
+    if (savingDays) return;
+    setSavingDays(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ closedWeekdays: JSON.stringify(closedDays) }),
+      });
+      if (res.ok) setDaysSaved(true);
+      else alert("บันทึกวันหยุดไม่สำเร็จ");
+    } catch {
+      alert("เกิดข้อผิดพลาด");
+    } finally {
+      setSavingDays(false);
+    }
+  };
 
   const fetchCaps = useCallback(async (date: string): Promise<CapMap> => {
     const res = await fetch(`/api/booking-slots?date=${encodeURIComponent(date)}`);
@@ -152,6 +197,43 @@ export default function BookingSlotsPage() {
         <button onClick={handleSave} disabled={loading || saving} className="btn-primary">
           บันทึก
         </button>
+      </div>
+
+      <div className="card mb-4">
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-sm font-medium text-slate-700">วันเปิด-ปิดร้าน (ประจำสัปดาห์)</label>
+          <button
+            onClick={saveClosedDays}
+            disabled={savingDays}
+            className="text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
+          >
+            {savingDays ? "กำลังบันทึก..." : "บันทึกวันหยุด"}
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {WEEKDAY_LABELS.map((label, dow) => {
+            const isClosed = closedDays.includes(dow);
+            return (
+              <button
+                key={dow}
+                type="button"
+                onClick={() => toggleClosedDay(dow)}
+                className={`w-11 h-11 rounded-lg text-sm font-semibold border transition-colors ${
+                  isClosed
+                    ? "bg-red-50 border-red-300 text-red-600"
+                    : "bg-green-50 border-green-300 text-green-700"
+                }`}
+                title={isClosed ? "ปิด (กดเพื่อเปิด)" : "เปิด (กดเพื่อปิด)"}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-slate-500 mt-2">
+          🟢 เปิด · 🔴 ปิด — วันที่ปิดลูกค้าจะจองคิวไม่ได้ทั้งวัน
+          {daysSaved && <span className="text-emerald-600 ml-2">บันทึกแล้ว</span>}
+        </p>
       </div>
 
       <div className="card mb-4">

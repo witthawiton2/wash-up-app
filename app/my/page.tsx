@@ -60,6 +60,7 @@ const STR: Record<Lang, Record<string, string>> = {
     act_send: "ส่งเสื้อผ้าซัก",
     act_receive: "รับเสื้อผ้าที่เสร็จคืน (+ส่งเสื้อผ้าใหม่)",
     choose_order_receive: "เลือกออเดอร์ที่ต้องการรับคืน",
+    no_receivable_orders: "ยังไม่มีออเดอร์ที่ซักเสร็จพร้อมรับคืน (รอทางร้านซักเสร็จก่อนครับ)",
     choose_timeslot: "เลือกช่วงเวลา",
     slot_morning: "ช่วงเช้า (9:00-12:00)",
     slot_afternoon: "ช่วงบ่าย (12:00-18:00)",
@@ -108,6 +109,7 @@ const STR: Record<Lang, Record<string, string>> = {
     slot_remaining: "เหลือ {n}",
     slot_too_soon: "ต้องจองล่วงหน้า ≥1 ชม.",
     receive_lead_time_note: "การรับผ้าคืนต้องจองล่วงหน้าอย่างน้อย 1 ชั่วโมง",
+    shop_closed_day: "ร้านปิดในวันนี้ กรุณาเลือกวันอื่นครับ",
   },
   en: {
     loading: "Loading...",
@@ -158,6 +160,7 @@ const STR: Record<Lang, Record<string, string>> = {
     act_send: "Drop off laundry",
     act_receive: "Pick up finished (+drop off new)",
     choose_order_receive: "Select an order to pick up",
+    no_receivable_orders: "No finished orders ready to pick up yet — please wait until the shop marks it ready.",
     choose_timeslot: "Choose time slot",
     slot_morning: "Morning (9:00-12:00)",
     slot_afternoon: "Afternoon (12:00-18:00)",
@@ -206,6 +209,7 @@ const STR: Record<Lang, Record<string, string>> = {
     slot_remaining: "{n} left",
     slot_too_soon: "≥1h ahead",
     receive_lead_time_note: "Pickups must be booked at least 1 hour in advance",
+    shop_closed_day: "The shop is closed on this day — please pick another date",
   },
 };
 
@@ -313,6 +317,7 @@ export default function MyPage() {
     string,
     { send: { used: number; cap: number | null; full: boolean }; receive: { used: number; cap: number | null; full: boolean } }
   > | null>(null);
+  const [slotClosed, setSlotClosed] = useState(false);
 
   // Delivery photo viewer
   const [photoViewUrls, setPhotoViewUrls] = useState<string[] | null>(null);
@@ -389,6 +394,7 @@ export default function MyPage() {
   useEffect(() => {
     if (!bookingDate) {
       setSlotAvailability(null);
+      setSlotClosed(false);
       return;
     }
     let cancelled = false;
@@ -397,7 +403,10 @@ export default function MyPage() {
         const res = await apiFetch(`/api/my/slot-availability?date=${encodeURIComponent(bookingDate)}`);
         if (!res.ok) return;
         const data = await res.json();
-        if (!cancelled) setSlotAvailability(data);
+        if (!cancelled) {
+          setSlotAvailability(data.slots ?? null);
+          setSlotClosed(!!data.closed);
+        }
       } catch { /* ignore */ }
     })();
     return () => { cancelled = true; };
@@ -732,7 +741,7 @@ export default function MyPage() {
         if (bookingDate) {
           apiFetch(`/api/my/slot-availability?date=${encodeURIComponent(bookingDate)}`)
             .then((r) => r.ok ? r.json() : null)
-            .then((d) => { if (d) setSlotAvailability(d); })
+            .then((d) => { if (d) { setSlotAvailability(d.slots ?? null); setSlotClosed(!!d.closed); } })
             .catch(() => {});
         }
       }
@@ -788,8 +797,12 @@ export default function MyPage() {
   }
 
   const pkg = packages.find((p) => p.name === selectedPkg);
-  const pendingOrders = orders.filter(
-    (o) => o.status !== "ส่งแล้ว" && !o.requestedDeliveryDate
+  // Orders eligible for a "pick up finished laundry" booking: only those the
+  // shop has finished ("พร้อมส่ง") and that aren't already scheduled. Clothes
+  // still being washed ("รอซักรีด") can't be picked up yet. Dropping off new
+  // laundry ("send") needs no existing order at all.
+  const receivableOrders = orders.filter(
+    (o) => o.status === "พร้อมส่ง" && !o.requestedDeliveryDate
   );
 
   return (
@@ -1153,7 +1166,7 @@ export default function MyPage() {
                       name="activity"
                       value={a.id}
                       checked={bookingActivity === a.id}
-                      onChange={() => { setBookingActivity(a.id); setBookingSuccess(false); }}
+                      onChange={() => { setBookingActivity(a.id); setBookingOrderId(""); setBookingTime(""); setBookingSuccess(false); }}
                       className="w-5 h-5 text-blue-500"
                     />
                     <span className="text-sm text-slate-700">{a.label}</span>
@@ -1162,12 +1175,18 @@ export default function MyPage() {
               </div>
             </div>
 
-            {/* เลือกออเดอร์ (เฉพาะรับผ้าคืน) */}
-            {bookingActivity === "receive" && pendingOrders.length > 0 && (
+            {/* เลือกออเดอร์ (เฉพาะรับผ้าคืน — ต้องเป็นออเดอร์ที่ซักเสร็จแล้ว) */}
+            {bookingActivity === "receive" && receivableOrders.length === 0 && (
+              <div className="bg-white rounded-xl p-4 shadow-sm">
+                <h4 className="text-sm font-bold text-slate-700 mb-1">{s.choose_order_receive}</h4>
+                <p className="text-sm text-slate-400">{s.no_receivable_orders}</p>
+              </div>
+            )}
+            {bookingActivity === "receive" && receivableOrders.length > 0 && (
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <h4 className="text-sm font-bold text-slate-700 mb-3">{s.choose_order_receive}</h4>
                 <div className="space-y-2">
-                  {pendingOrders.map((o) => (
+                  {receivableOrders.map((o) => (
                     <label
                       key={o.orderId}
                       className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
@@ -1210,8 +1229,8 @@ export default function MyPage() {
               </div>
             )}
 
-            {/* วิธีรับ-ส่งผ้า (เลือกก่อนเพื่อให้ปุ่มเวลารู้ว่าจะ cap จาก method ไหน) */}
-            {bookingActivity && (bookingActivity === "send" || bookingOrderId || pendingOrders.length === 0) && (
+            {/* วิธีรับ-ส่งผ้า — send ทำได้เลย, receive ต้องเลือกออเดอร์ที่พร้อมส่งก่อน */}
+            {bookingActivity && (bookingActivity === "send" || bookingOrderId) && (
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <h4 className="text-sm font-bold text-slate-700 mb-3">{s.pickup_method}</h4>
                 <div className="space-y-2">
@@ -1285,11 +1304,14 @@ export default function MyPage() {
                   min={new Date().toISOString().split("T")[0]}
                   className="w-full px-3 py-2.5 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+                {bookingDate && slotClosed && (
+                  <p className="text-sm text-red-500 mt-2">🚫 {s.shop_closed_day}</p>
+                )}
               </div>
             )}
 
             {/* เลือกเวลา (พร้อม cap indicator ตามกิจกรรมที่เลือก) */}
-            {bookingDate && bookingTimeSlot && bookingDeliveryMethod && bookingActivity && (
+            {bookingDate && !slotClosed && bookingTimeSlot && bookingDeliveryMethod && bookingActivity && (
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <h4 className="text-sm font-bold text-slate-700 mb-3">{s.choose_time}</h4>
                 {bookingActivity === "receive" && (

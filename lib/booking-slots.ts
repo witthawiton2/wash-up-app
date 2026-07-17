@@ -72,6 +72,31 @@ export function extractActivityFromNote(note: string | null): SlotActivity | nul
   return activityKeyFromLabel(m[1]);
 }
 
+// Weekly shop closures. Stored on Settings.closedWeekdays as a JSON array of
+// weekday indices (0 = Sunday … 6 = Saturday); empty/absent = open every day.
+export function parseClosedWeekdays(raw: string | null | undefined): number[] {
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr)
+      ? arr.filter((n) => typeof n === "number" && n >= 0 && n <= 6)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+// Weekday index (0 = Sunday) of a "YYYY-MM-DD" calendar date. Anchored at UTC
+// midnight so it's timezone-independent — the calendar date's weekday is the
+// same everywhere.
+export function weekdayOfDateStr(date: string): number {
+  return new Date(`${date}T00:00:00Z`).getUTCDay();
+}
+
+export function isDateClosed(date: string, closedWeekdays: number[]): boolean {
+  return closedWeekdays.includes(weekdayOfDateStr(date));
+}
+
 // Bangkok-local day boundaries as UTC Dates, for Prisma range queries.
 // dateStr is "YYYY-MM-DD" from an HTML date input.
 export function bangkokDayRange(dateStr: string): { gte: Date; lte: Date } {

@@ -286,16 +286,17 @@ export async function POST(request: NextRequest) {
           const now = new Date();
           const endDate = new Date(updatedCustomer.endDate);
           const daysLeft = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          const renewLink = `${getBaseUrl()}/my?tab=package`;
 
           if (daysLeft <= 0) {
             pushTextMessage(
               updatedCustomer.lineUserId,
-              `⚠️ แจ้งเตือน\nแพ็กเกจของคุณหมดอายุแล้วครับ\n\nกดต่ออายุแพ็กเกจได้เลยครับ 😊`
+              `⚠️ แจ้งเตือน\nแพ็กเกจของคุณหมดอายุแล้วครับ\n\nกดต่ออายุแพ็กเกจได้ที่นี่เลยครับ 😊\n${renewLink}`
             ).catch((err) => console.error("Failed to send LINE expiry alert:", err));
           } else if (daysLeft <= 7) {
             pushTextMessage(
               updatedCustomer.lineUserId,
-              `⏰ แจ้งเตือน\nแพ็กเกจของคุณจะหมดอายุใน ${daysLeft} วัน\n\nกดต่ออายุแพ็กเกจได้เลยครับ 😊`
+              `⏰ แจ้งเตือน\nแพ็กเกจของคุณจะหมดอายุใน ${daysLeft} วัน\n\nกดต่ออายุแพ็กเกจได้ที่นี่เลยครับ 😊\n${renewLink}`
             ).catch((err) => console.error("Failed to send LINE expiry alert:", err));
           }
         }

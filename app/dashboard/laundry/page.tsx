@@ -1206,19 +1206,27 @@ ${settings.receiptHeader ? `<div class="center" style="margin-top:6px;font-size:
               onChange={async (e) => {
                 const files = e.target.files;
                 if (!files) return;
+                let failed = 0;
                 for (const file of Array.from(files)) {
-                  const formData = new FormData();
-                  formData.append("file", file);
-                  const res = await fetch("/api/upload", { method: "POST", body: formData });
-                  const data = await res.json();
-                  if (data.success) {
-                    setEditing((prev) => ({
-                      ...prev,
-                      checkPhotos: [...prev.checkPhotos, data.url],
-                    }));
+                  try {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    const res = await fetch("/api/upload", { method: "POST", body: formData });
+                    const data = await res.json().catch(() => null);
+                    if (res.ok && data?.success) {
+                      setEditing((prev) => ({
+                        ...prev,
+                        checkPhotos: [...prev.checkPhotos, data.url],
+                      }));
+                    } else {
+                      failed++;
+                    }
+                  } catch {
+                    failed++;
                   }
                 }
                 if (checkPhotoRef.current) checkPhotoRef.current.value = "";
+                if (failed > 0) alert(`อัปโหลดรูปไม่สำเร็จ ${failed} รูป กรุณาลองใหม่`);
               }}
               className="hidden"
             />

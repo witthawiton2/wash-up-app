@@ -70,7 +70,14 @@ export default function StockPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ delta }),
       });
-      if (res.ok) await load();
+      if (res.ok) {
+        await load();
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "ปรับสต็อกไม่สำเร็จ");
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {
       setAdjusting(null);
     }
@@ -89,14 +96,20 @@ export default function StockPage() {
           note: editing.note,
         }
       : editing;
-    const res = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (res.ok) {
-      await load();
-      setModalOpen(false);
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (res.ok) {
+        await load();
+        setModalOpen(false);
+      } else {
+        alert("บันทึกไม่สำเร็จ กรุณาลองใหม่");
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
     }
   };
 
@@ -106,6 +119,8 @@ export default function StockPage() {
     if (res.ok) {
       await load();
       setDeleteTarget(null);
+    } else {
+      alert("ลบไม่สำเร็จ กรุณาลองใหม่");
     }
   };
 
@@ -183,7 +198,7 @@ export default function StockPage() {
                         <div className="inline-flex gap-1">
                           <button
                             onClick={() => adjust(item.id, -1)}
-                            disabled={adjusting === item.id}
+                            disabled={adjusting === item.id || item.quantity <= 0}
                             className="px-2 py-1 rounded-lg text-sm bg-slate-100 hover:bg-slate-200 disabled:opacity-50"
                           >−1</button>
                           <button

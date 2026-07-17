@@ -427,7 +427,7 @@ export default function MyPage() {
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidKey) as BufferSource,
       });
-      await apiFetch("/api/my/push/subscribe", {
+      const res = await apiFetch("/api/my/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -436,6 +436,13 @@ export default function MyPage() {
           userAgent: navigator.userAgent,
         }),
       });
+      if (!res.ok) {
+        // Persisting failed — roll back the browser subscription so the banner
+        // reappears next time instead of silently believing we're subscribed.
+        await sub.unsubscribe().catch(() => {});
+        console.error("Push subscribe not persisted:", res.status);
+        return;
+      }
       setPushBannerVisible(false);
     } catch (err) {
       console.error("Push subscribe failed:", err);
@@ -534,6 +541,9 @@ export default function MyPage() {
           setActiveTab("orders");
           setRenewSuccess(false);
         }, 1500);
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || s.err_generic);
       }
     } catch {
       alert(s.err_generic);
@@ -645,6 +655,9 @@ export default function MyPage() {
         setPaySlipFile(null);
         setPaySlipPreview("");
         loadData(lineUserId);
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || s.err_generic);
       }
     } catch {
       alert(s.err_generic);

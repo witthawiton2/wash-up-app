@@ -198,7 +198,11 @@ export default function OrderDetailPage({
       if (res.ok) {
         const { sig } = await res.json();
         setReceiptUrl(`/api/receipt/${orderId}?sig=${sig}&t=${Date.now()}`);
+      } else {
+        alert("ไม่สามารถเปิดใบเสร็จได้ กรุณาลองใหม่");
       }
+    } catch {
+      alert("ไม่สามารถเปิดใบเสร็จได้ กรุณาลองใหม่");
     } finally {
       receiptLoading.current = false;
     }

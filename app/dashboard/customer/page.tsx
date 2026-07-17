@@ -187,9 +187,13 @@ export default function CustomerPage() {
       if (res.ok) {
         await fetchCustomers();
         setModalOpen(false);
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "บันทึกไม่สำเร็จ กรุณาลองใหม่");
       }
     } catch (error) {
       console.error("Failed to save customer:", error);
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {
       setSaving(false);
     }

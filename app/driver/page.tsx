@@ -28,6 +28,7 @@ export default function DriverHome() {
   const [submitPhoto, setSubmitPhoto] = useState<File | null>(null);
   const [submitPreview, setSubmitPreview] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [enRouteId, setEnRouteId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -50,12 +51,21 @@ export default function DriverHome() {
     : deliveries;
 
   const markEnRoute = async (d: Delivery) => {
-    const res = await fetch("/api/deliveries", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderId: d.orderId, status: "กำลังจัดส่ง" }),
-    });
-    if (res.ok) await load();
+    if (enRouteId) return; // guard against double-tap
+    setEnRouteId(d.orderId);
+    try {
+      const res = await fetch("/api/deliveries", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: d.orderId, status: "กำลังจัดส่ง" }),
+      });
+      if (res.ok) await load();
+      else alert("อัปเดตสถานะไม่สำเร็จ กรุณาลองใหม่");
+    } catch {
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setEnRouteId(null);
+    }
   };
 
   const openComplete = (d: Delivery) => {
@@ -183,7 +193,8 @@ export default function DriverHome() {
                 {d.status === "พร้อมส่ง" && (
                   <button
                     onClick={() => markEnRoute(d)}
-                    className="mt-2 w-full py-2.5 rounded-xl text-white text-sm font-semibold"
+                    disabled={enRouteId === d.orderId}
+                    className="mt-2 w-full py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50"
                     style={{ background: "linear-gradient(135deg, #3b82f6, #6366f1)" }}
                   >
                     🚚 เริ่มจัดส่ง

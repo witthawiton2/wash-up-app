@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Modal, { ConfirmDelete } from "@/components/Modal";
+import { useRequireAdmin } from "@/lib/use-require-admin";
 
 interface Package {
   id: number;
@@ -22,6 +23,7 @@ const emptyPkg: Package = {
 };
 
 export default function PackagesPage() {
+  useRequireAdmin();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);

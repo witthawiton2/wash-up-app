@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Modal, { ConfirmDelete } from "@/components/Modal";
+import { useRequireAdmin } from "@/lib/use-require-admin";
 
 interface User {
   id: number;
@@ -41,6 +42,7 @@ const emptyUser = {
 };
 
 export default function UsersPage() {
+  useRequireAdmin();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);

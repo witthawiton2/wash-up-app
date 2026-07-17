@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Spinner from "@/components/Spinner";
 import { SLOT_TIMES, SLOT_METHODS, type SlotMethod } from "@/lib/booking-slots";
+import { useRequireAdmin } from "@/lib/use-require-admin";
 
 type CapRow = { time: string; method: string; capacity: number };
 
@@ -35,6 +36,7 @@ function rowsToCapMap(rows: CapRow[]): CapMap {
 }
 
 export default function BookingSlotsPage() {
+  useRequireAdmin();
   const [caps, setCaps] = useState<CapMap>(emptyCapMap());
   const [defaults, setDefaults] = useState<CapMap>(emptyCapMap());
   const [editDate, setEditDate] = useState(""); // "" = default (every day)

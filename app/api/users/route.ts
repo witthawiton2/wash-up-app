@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+
+const VALID_ROLES = ["admin", "staff", "driver", "ironer"];
+
+function isUniqueViolation(e: unknown): boolean {
+  return e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002";
+}
+
+// Guard against removing the last usable admin (demote / deactivate / delete),
+// which would lock everyone out of admin features.
+async function wouldOrphanAdmins(userId: number): Promise<boolean> {
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, active: true },
+  });
+  if (!target || target.role !== "admin" || !target.active) return false;
+  const activeAdmins = await prisma.user.count({ where: { role: "admin", active: true } });
+  return activeAdmins <= 1;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,6 +69,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (!VALID_ROLES.includes(role)) {
+      return NextResponse.json({ error: "สิทธิ์ (role) ไม่ถูกต้อง" }, { status: 400 });
+    }
 
     const user = await prisma.user.create({
       data: {
@@ -63,9 +85,12 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(user);
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return NextResponse.json({ error: "ชื่อผู้ใช้นี้มีอยู่แล้ว" }, { status: 409 });
+    }
     console.error("Failed to create user:", error);
     return NextResponse.json(
-      { error: "Failed to create user (username may already exist)" },
+      { error: "Failed to create user" },
       { status: 500 }
     );
   }
@@ -79,6 +104,20 @@ export async function PUT(request: NextRequest) {
     if (!id) {
       return NextResponse.json(
         { error: "ID is required" },
+        { status: 400 }
+      );
+    }
+
+    if (role && !VALID_ROLES.includes(role)) {
+      return NextResponse.json({ error: "สิทธิ์ (role) ไม่ถูกต้อง" }, { status: 400 });
+    }
+
+    // Block demoting or deactivating the final admin.
+    const demoting = role && role !== "admin";
+    const deactivating = active === false;
+    if ((demoting || deactivating) && (await wouldOrphanAdmins(Number(id)))) {
+      return NextResponse.json(
+        { error: "ต้องมีผู้จัดการ (admin) ที่ใช้งานได้อย่างน้อย 1 คน" },
         { status: 400 }
       );
     }
@@ -98,6 +137,9 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(user);
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return NextResponse.json({ error: "ชื่อผู้ใช้นี้มีอยู่แล้ว" }, { status: 409 });
+    }
     console.error("Failed to update user:", error);
     return NextResponse.json(
       { error: "Failed to update user" },
@@ -122,6 +164,12 @@ export async function DELETE(request: NextRequest) {
     const existing = await prisma.user.findUnique({ where: { id: numId } });
     if (!existing) {
       return NextResponse.json({ success: true, alreadyGone: true });
+    }
+    if (await wouldOrphanAdmins(numId)) {
+      return NextResponse.json(
+        { error: "ลบไม่ได้ — ต้องมีผู้จัดการ (admin) ที่ใช้งานได้อย่างน้อย 1 คน" },
+        { status: 400 }
+      );
     }
     await prisma.user.delete({ where: { id: numId } });
     return NextResponse.json({ success: true });

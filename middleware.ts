@@ -43,6 +43,26 @@ function isPublic(path: string, method: string): boolean {
   return false;
 }
 
+type Role = "admin" | "staff" | "driver" | "ironer";
+
+// Server-side role gate. Returns the roles allowed to reach `path` with
+// `method`, or null for "any authenticated role". Public paths never reach
+// here. This mirrors the sidebar's intended access so it can't be bypassed by
+// typing a URL or calling the API directly. Public GETs (packages, settings)
+// are already allowed above, so a request reaching these prefixes is a mutation.
+function allowedRoles(path: string, method: string): Role[] | null {
+  if (path.startsWith("/api/summary")) return ["admin"];
+  if (path.startsWith("/api/export")) return ["admin"];
+  if (path.startsWith("/api/booking-slots")) return ["admin"];
+  if (path.startsWith("/api/settings")) return ["admin"];
+  if (path.startsWith("/api/packages")) return ["admin"];
+  if (path.startsWith("/api/upload/logo")) return ["admin"];
+  if (path.startsWith("/api/reports/")) return ["admin", "staff"];
+  // User list is read by the ironing staff-picker; only mutations are admin-only.
+  if (path.startsWith("/api/users")) return method === "GET" ? null : ["admin"];
+  return null;
+}
+
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   if (!path.startsWith("/api/")) return NextResponse.next();
@@ -64,6 +84,11 @@ export async function middleware(request: NextRequest) {
   const session = await verifySession(token);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const allowed = allowedRoles(path, request.method);
+  if (allowed && !allowed.includes(session.r as Role)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   return NextResponse.next();

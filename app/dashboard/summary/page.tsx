@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePolling } from "@/lib/use-polling";
+import { useRequireAdmin } from "@/lib/use-require-admin";
 
 interface ItemBreakdown {
   name: string;
@@ -57,6 +58,7 @@ interface Totals {
 }
 
 export default function SummaryPage() {
+  useRequireAdmin();
   const [summary, setSummary] = useState<DailySummary[]>([]);
   const [totals, setTotals] = useState<Totals>({
     totalOrders: 0,

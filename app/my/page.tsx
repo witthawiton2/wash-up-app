@@ -106,6 +106,8 @@ const STR: Record<Lang, Record<string, string>> = {
     save_success: "บันทึกเรียบร้อยแล้ว",
     slot_full_short: "เต็ม",
     slot_remaining: "เหลือ {n}",
+    slot_too_soon: "ต้องจองล่วงหน้า ≥1 ชม.",
+    receive_lead_time_note: "การรับผ้าคืนต้องจองล่วงหน้าอย่างน้อย 1 ชั่วโมง",
   },
   en: {
     loading: "Loading...",
@@ -202,6 +204,8 @@ const STR: Record<Lang, Record<string, string>> = {
     save_success: "Saved",
     slot_full_short: "Full",
     slot_remaining: "{n} left",
+    slot_too_soon: "≥1h ahead",
+    receive_lead_time_note: "Pickups must be booked at least 1 hour in advance",
   },
 };
 
@@ -1181,8 +1185,21 @@ export default function MyPage() {
                         className="w-5 h-5 text-blue-500"
                       />
                       <div className="flex-1">
-                        <span className="text-sm font-medium text-blue-600">{o.orderId}</span>
-                        <span className="text-xs text-slate-400 ml-2">{o.date}</span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-medium text-blue-600">{o.orderId}</span>
+                          <span className="text-xs text-slate-400">{o.date}</span>
+                          {(() => {
+                            const st = statusLabel[o.status] || { text: o.status, color: "#94a3b8" };
+                            return (
+                              <span
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+                                style={{ backgroundColor: st.color }}
+                              >
+                                {st.text}
+                              </span>
+                            );
+                          })()}
+                        </div>
                         <div className="text-xs text-slate-500 mt-0.5">
                           {o.items.map((i) => `${lang === "en" && i.nameEn ? i.nameEn : i.name} x${i.qty}`).join(", ")}
                         </div>
@@ -1275,19 +1292,28 @@ export default function MyPage() {
             {bookingDate && bookingTimeSlot && bookingDeliveryMethod && bookingActivity && (
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <h4 className="text-sm font-bold text-slate-700 mb-3">{s.choose_time}</h4>
+                {bookingActivity === "receive" && (
+                  <p className="text-[11px] text-amber-600 mb-2">⏱️ {s.receive_lead_time_note}</p>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {slotTimes[bookingTimeSlot]?.map((t) => {
                     const info = slotAvailability?.[t]?.[bookingActivity as "send" | "receive"];
                     const full = !!info?.full;
+                    // Pickups need ≥1h lead time; disable slots that are too
+                    // soon (only matters for today — future dates are always ok).
+                    const [th, tm] = t.split(":");
+                    const slotMs = new Date(`${bookingDate}T${(th || "0").padStart(2, "0")}:${(tm || "00").padStart(2, "0")}:00+07:00`).getTime();
+                    const tooSoon = bookingActivity === "receive" && slotMs - Date.now() < 60 * 60 * 1000;
+                    const disabled = full || tooSoon;
                     const remaining = info && info.cap !== null ? Math.max(0, info.cap - info.used) : null;
                     const selected = bookingTime === t;
                     return (
                       <button
                         key={t}
-                        onClick={() => { if (!full) setBookingTime(t); }}
-                        disabled={full}
+                        onClick={() => { if (!disabled) setBookingTime(t); }}
+                        disabled={disabled}
                         className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors flex flex-col items-center min-w-[68px] ${
-                          full
+                          disabled
                             ? "bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed"
                             : selected
                             ? "bg-blue-500 text-white border-blue-500"
@@ -1297,6 +1323,8 @@ export default function MyPage() {
                         <span>{t}</span>
                         {full ? (
                           <span className="text-[10px] mt-0.5">{s.slot_full_short}</span>
+                        ) : tooSoon ? (
+                          <span className="text-[10px] mt-0.5">{s.slot_too_soon}</span>
                         ) : remaining !== null && remaining <= 3 ? (
                           <span className={`text-[10px] mt-0.5 ${selected ? "text-white/80" : "text-orange-500"}`}>
                             {fmt(s.slot_remaining, { n: remaining })}

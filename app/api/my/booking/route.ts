@@ -112,6 +112,12 @@ export async function POST(request: NextRequest) {
     const activityKey: SlotActivity | null = SLOT_ACTIVITIES.includes(activity as SlotActivity)
       ? (activity as SlotActivity)
       : null;
+
+    // Pickups (receiving finished laundry) need at least 1 hour lead time so
+    // the shop can have the order ready before the customer arrives.
+    if (activityKey === "receive" && requestedDeliveryDate.getTime() - Date.now() < 60 * 60 * 1000) {
+      return apiError(lang, "booking_too_soon", 400);
+    }
     const range = bangkokDayRange(date);
 
     // Enforce the slot cap and persist the booking atomically so two customers

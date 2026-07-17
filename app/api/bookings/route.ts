@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatTime } from "@/lib/timezone";
 import { extractActivityFromNote } from "@/lib/booking-slots";
+import { pushTextMessage } from "@/lib/line-api";
+import { sendCustomerPush } from "@/lib/push";
 
 // Short activity labels for the admin bookings badge.
 const ACTIVITY_SHORT: Record<string, string> = {
@@ -100,5 +102,59 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("Failed to fetch bookings:", error);
     return NextResponse.json({ error: "Failed to fetch bookings" }, { status: 500 });
+  }
+}
+
+// Admin cancels a customer's booking: clear the requested slot and strip the
+// "จองคิว: ..." segment from the note, leaving the rest of the order intact.
+// (Middleware gates this to the admin role.)
+export async function DELETE(request: NextRequest) {
+  try {
+    const orderId = request.nextUrl.searchParams.get("orderId");
+    if (!orderId) {
+      return NextResponse.json({ error: "orderId is required" }, { status: 400 });
+    }
+
+    const order = await prisma.order.findUnique({
+      where: { orderId },
+      include: { customer: true },
+    });
+    if (!order) {
+      return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+    if (!order.requestedDeliveryDate) {
+      return NextResponse.json({ error: "No booking to cancel" }, { status: 400 });
+    }
+
+    const cleanedNote = (order.note || "")
+      .replace(BOOKING_SEGMENT_RE, "")
+      .trim()
+      .replace(/^\|\s*/, "");
+
+    await prisma.order.update({
+      where: { orderId },
+      data: {
+        requestedDeliveryDate: null,
+        note: cleanedNote || null,
+      },
+    });
+
+    // Let the customer know the shop cancelled their queue (best-effort).
+    if (order.customer?.lineUserId) {
+      pushTextMessage(
+        order.customer.lineUserId,
+        `❌ ทางร้านได้ยกเลิกคิวของคุณ\n\nออเดอร์: ${orderId}\nหากต้องการจองใหม่ เข้าไปจองได้ที่หน้า "จองคิว" ครับ 🙏`
+      ).catch((err) => console.error("Failed to send LINE admin-cancel notice:", err));
+      sendCustomerPush(order.customer.id, {
+        title: "คิวถูกยกเลิก",
+        body: `ออเดอร์ ${orderId} — จองใหม่ได้ที่หน้าจองคิว`,
+        url: "/my?tab=booking",
+      }).catch(() => {});
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Failed to cancel booking:", error);
+    return NextResponse.json({ error: "Failed to cancel booking" }, { status: 500 });
   }
 }

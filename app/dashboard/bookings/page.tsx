@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { usePolling } from "@/lib/use-polling";
+import { useAuth } from "@/lib/auth-context";
 
 interface Booking {
   orderId: string;
@@ -59,10 +60,13 @@ const isoToThaiDate = (iso: string): string => {
 };
 
 export default function BookingsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<string>(todayIso());
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
 
   const fetchBookings = useCallback(async () => {
     try {
@@ -74,6 +78,26 @@ export default function BookingsPage() {
       setLoading(false);
     }
   }, []);
+
+  const handleCancel = async (orderId: string) => {
+    if (!confirm(`ยกเลิกคิวของออเดอร์ ${orderId}?\nระบบจะแจ้งลูกค้าทาง LINE`)) return;
+    setCancellingId(orderId);
+    try {
+      const res = await fetch(`/api/bookings?orderId=${encodeURIComponent(orderId)}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await fetchBookings();
+      } else {
+        const data = await res.json().catch(() => null);
+        alert(data?.error || "ยกเลิกคิวไม่สำเร็จ");
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setCancellingId(null);
+    }
+  };
 
   useEffect(() => {
     fetchBookings();
@@ -232,6 +256,18 @@ export default function BookingsPage() {
                       {b.note && (
                         <div className="text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 mt-1">
                           {b.note}
+                        </div>
+                      )}
+
+                      {isAdmin && (
+                        <div className="flex justify-end mt-2 pt-2 border-t border-slate-100">
+                          <button
+                            onClick={() => handleCancel(b.orderId)}
+                            disabled={cancellingId === b.orderId}
+                            className="text-xs font-medium text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg hover:bg-red-100 disabled:opacity-50"
+                          >
+                            {cancellingId === b.orderId ? "กำลังยกเลิก..." : "ยกเลิกคิว"}
+                          </button>
                         </div>
                       )}
                     </div>

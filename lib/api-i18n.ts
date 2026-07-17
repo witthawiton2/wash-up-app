@@ -25,7 +25,8 @@ type Key =
   | "duplicate_email"
   | "booking_failed"
   | "cancel_failed"
-  | "slot_full";
+  | "slot_full"
+  | "booking_too_soon";
 
 const MESSAGES: Record<Lang, Record<Key, string>> = {
   th: {
@@ -43,6 +44,7 @@ const MESSAGES: Record<Lang, Record<Key, string>> = {
     booking_failed: "จองคิวไม่สำเร็จ",
     cancel_failed: "ยกเลิกคิวไม่สำเร็จ",
     slot_full: "ช่วงเวลานี้เต็มแล้ว กรุณาเลือกเวลาอื่น",
+    booking_too_soon: "การรับผ้าคืนต้องจองล่วงหน้าอย่างน้อย 1 ชั่วโมง กรุณาเลือกเวลาอื่น",
   },
   en: {
     customer_not_found: "Customer not found — please register first",
@@ -59,6 +61,7 @@ const MESSAGES: Record<Lang, Record<Key, string>> = {
     booking_failed: "Booking failed",
     cancel_failed: "Could not cancel booking",
     slot_full: "This slot is full — please pick another time",
+    booking_too_soon: "Pickups must be booked at least 1 hour in advance — please pick another time",
   },
 };
 

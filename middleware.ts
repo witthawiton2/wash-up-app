@@ -72,7 +72,8 @@ function allowedRoles(path: string, method: string): Role[] | null {
   if (path.startsWith("/api/payments")) return ADMIN_STAFF;
   if (path.startsWith("/api/stock")) return ADMIN_STAFF; // incl. /[id] + /movement
   if (path.startsWith("/api/service-items")) return ADMIN_STAFF;
-  if (path.startsWith("/api/bookings")) return ADMIN_STAFF;
+  // Bookings list is read by staff; cancelling a booking is admin-only.
+  if (path.startsWith("/api/bookings")) return method === "GET" ? ADMIN_STAFF : ADMIN;
   if (path.startsWith("/api/line/")) return ADMIN_STAFF;
 
   // --- Order ops: staff + the ironing station ---

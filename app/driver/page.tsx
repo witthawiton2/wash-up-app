@@ -20,7 +20,10 @@ const STATUS_COLORS: Record<string, string> = {
   "พร้อมส่ง": "#10b981",
   "กำลังจัดส่ง": "#3b82f6",
   "ส่งแล้ว": "#94a3b8",
+  "ส่งไม่สำเร็จ": "#ef4444",
 };
+
+const FAIL_REASONS = ["ลูกค้าไม่รับสาย", "ไม่อยู่บ้าน", "ที่อยู่ไม่ถูกต้อง", "อื่นๆ"];
 
 const METHOD_LABELS: Record<string, string> = {
   home: "🏠 ฝากที่พัก",
@@ -32,9 +35,11 @@ export default function DriverHome() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"active" | "all">("active");
   const [submitTarget, setSubmitTarget] = useState<Delivery | null>(null);
-  const [submitPhoto, setSubmitPhoto] = useState<File | null>(null);
-  const [submitPreview, setSubmitPreview] = useState("");
+  const [submitPhotos, setSubmitPhotos] = useState<{ file: File; preview: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [failTarget, setFailTarget] = useState<Delivery | null>(null);
+  const [failReason, setFailReason] = useState("");
+  const [failing, setFailing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -58,31 +63,38 @@ export default function DriverHome() {
 
   const openComplete = (d: Delivery) => {
     setSubmitTarget(d);
-    setSubmitPhoto(null);
-    setSubmitPreview("");
+    setSubmitPhotos([]);
   };
 
   const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setSubmitPhoto(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setSubmitPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () =>
+        setSubmitPhotos((prev) => [...prev, { file, preview: reader.result as string }]);
+      reader.readAsDataURL(file);
+    });
+    // Allow re-picking the same file(s) again after removing.
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const removePhoto = (idx: number) => {
+    setSubmitPhotos((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const submitComplete = async () => {
     if (!submitTarget) return;
     setSubmitting(true);
     try {
-      let photoArray: string[] = [];
-      if (submitPhoto) {
+      const photoArray: string[] = [];
+      for (const { file } of submitPhotos) {
         const fd = new FormData();
-        fd.append("file", submitPhoto);
+        fd.append("file", file);
         const up = await fetch("/api/upload", { method: "POST", body: fd });
         if (up.ok) {
           const d = await up.json();
-          if (d.success) photoArray = [d.url];
+          if (d.success) photoArray.push(d.url);
         }
       }
       const res = await fetch("/api/deliveries", {
@@ -100,6 +112,37 @@ export default function DriverHome() {
       }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openFail = (d: Delivery) => {
+    setFailTarget(d);
+    setFailReason("");
+  };
+
+  const markFailed = async () => {
+    if (!failTarget || failing) return;
+    setFailing(true);
+    try {
+      const res = await fetch("/api/deliveries", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: failTarget.orderId,
+          status: "ส่งไม่สำเร็จ",
+          reason: failReason.trim() || undefined,
+        }),
+      });
+      if (res.ok) {
+        setFailTarget(null);
+        await load();
+      } else {
+        alert("บันทึกไม่สำเร็จ กรุณาลองใหม่");
+      }
+    } catch {
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
+    } finally {
+      setFailing(false);
     }
   };
 
@@ -194,13 +237,21 @@ export default function DriverHome() {
                 </div>
 
                 {d.status !== "ส่งแล้ว" && (
-                  <button
-                    onClick={() => openComplete(d)}
-                    className="mt-2 w-full py-2.5 rounded-xl text-white text-sm font-semibold"
-                    style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}
-                  >
-                    📷 ถ่ายรูปปิดงาน
-                  </button>
+                  <div className="mt-2 space-y-2">
+                    <button
+                      onClick={() => openComplete(d)}
+                      className="w-full py-2.5 rounded-xl text-white text-sm font-semibold"
+                      style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}
+                    >
+                      📷 ถ่ายรูปปิดงาน
+                    </button>
+                    <button
+                      onClick={() => openFail(d)}
+                      className="w-full py-2 rounded-xl text-sm font-medium text-red-600 bg-red-50 border border-red-200 hover:bg-red-100"
+                    >
+                      ⚠️ ส่งไม่สำเร็จ
+                    </button>
+                  </div>
                 )}
               </div>
             );
@@ -218,16 +269,28 @@ export default function DriverHome() {
             </div>
             <p className="text-sm text-slate-500 mb-3">#{submitTarget.orderId} — {submitTarget.customer}</p>
 
-            {submitPreview && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={submitPreview} alt="proof" className="w-full max-h-72 object-contain rounded-xl mb-3 border" />
+            {submitPhotos.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {submitPhotos.map((p, idx) => (
+                  <div key={idx} className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.preview} alt={`proof-${idx}`} className="w-full h-24 object-cover rounded-lg border" />
+                    <button
+                      onClick={() => removePhoto(idx)}
+                      className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
-            <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPhotoChange} className="hidden" />
+            <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple onChange={onPhotoChange} className="hidden" />
             <button
               onClick={() => fileRef.current?.click()}
               className="w-full py-3 rounded-xl border-2 border-dashed border-slate-300 text-sm text-slate-500 hover:border-blue-400"
             >
-              {submitPreview ? "เปลี่ยนรูป" : "📷 ถ่ายรูปเป็นหลักฐาน (ไม่บังคับ)"}
+              {submitPhotos.length > 0 ? `📷 เพิ่มรูป (${submitPhotos.length} รูป)` : "📷 ถ่ายรูปเป็นหลักฐาน (ไม่บังคับ)"}
             </button>
 
             <div className="flex gap-2 mt-4">
@@ -244,6 +307,59 @@ export default function DriverHome() {
                 style={{ background: "linear-gradient(135deg, #10b981, #059669)" }}
               >
                 {submitting ? "กำลังบันทึก..." : "ยืนยันส่งแล้ว"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Failed-delivery modal */}
+      {failTarget && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-slate-800">ส่งไม่สำเร็จ</h3>
+              <button onClick={() => setFailTarget(null)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            <p className="text-sm text-slate-500 mb-3">#{failTarget.orderId} — {failTarget.customer}</p>
+
+            <p className="text-sm font-medium text-slate-600 mb-2">เลือกเหตุผล</p>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {FAIL_REASONS.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setFailReason(r === "อื่นๆ" ? "" : r)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${
+                    failReason === r
+                      ? "bg-red-500 text-white border-red-500"
+                      : "bg-white text-slate-600 border-slate-300 hover:border-red-300"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={failReason}
+              onChange={(e) => setFailReason(e.target.value)}
+              placeholder="ระบุเหตุผลเพิ่มเติม (ถ้ามี)"
+              rows={2}
+              className="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-red-400"
+            />
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => setFailTarget(null)}
+                className="flex-1 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={markFailed}
+                disabled={failing}
+                className="flex-1 py-2.5 rounded-xl text-white text-sm font-semibold disabled:opacity-50 bg-red-500 hover:bg-red-600"
+              >
+                {failing ? "กำลังบันทึก..." : "ยืนยันส่งไม่สำเร็จ"}
               </button>
             </div>
           </div>

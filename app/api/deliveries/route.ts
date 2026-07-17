@@ -4,6 +4,7 @@ import { pushTextMessage, pushTextWithImages } from "@/lib/line-api";
 import { formatDate, formatDateTime } from "@/lib/timezone";
 import { parseDeliveryPhotos } from "@/lib/delivery-photos";
 import { sendCustomerPush } from "@/lib/push";
+import { notifyAdminLine } from "@/lib/notify-admin";
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     const bookedOnly = searchParams.get("booked") === "1";
 
     const where: Record<string, unknown> = {
-      status: { in: ["พร้อมส่ง", "กำลังจัดส่ง", "ส่งแล้ว"] },
+      status: { in: ["พร้อมส่ง", "กำลังจัดส่ง", "ส่งแล้ว", "ส่งไม่สำเร็จ"] },
     };
     if (bookedOnly) {
       where.requestedDeliveryDate = { not: null };
@@ -33,7 +34,9 @@ export async function GET(request: NextRequest) {
 
     const orders = await prisma.order.findMany({
       where,
-      orderBy: { updatedAt: "desc" },
+      // Driver view (booked): sort by the appointment time so the route runs
+      // earliest-first. Admin view: most-recently-updated first.
+      orderBy: bookedOnly ? { requestedDeliveryDate: "asc" } : { updatedAt: "desc" },
       take,
       select: {
         id: true,
@@ -102,6 +105,33 @@ export async function PUT(request: NextRequest) {
 
     if (!order) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
+    }
+
+    // Failed delivery: record the outcome + reason, alert the shop, and let the
+    // customer know it'll be rescheduled. The job stays visible so it can be
+    // retried later.
+    if (status === "ส่งไม่สำเร็จ") {
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      const failNote = `ส่งไม่สำเร็จ${reason ? `: ${reason}` : ""}`;
+      await prisma.order.update({
+        where: { orderId },
+        data: { status, note: order.note ? `${order.note} | ${failNote}` : failNote },
+      });
+      await prisma.delivery.upsert({
+        where: { orderId: order.id },
+        update: { status: "ส่งไม่สำเร็จ" },
+        create: { orderId: order.id, address: order.customer?.address, status: "ส่งไม่สำเร็จ" },
+      });
+      notifyAdminLine(
+        `⚠️ ส่งไม่สำเร็จ\n\nออเดอร์: ${orderId}\nลูกค้า: ${order.customer?.name || order.walkInName || "-"}${reason ? `\nเหตุผล: ${reason}` : ""}`
+      ).catch(() => {});
+      if (order.customer?.lineUserId) {
+        pushTextMessage(
+          order.customer.lineUserId,
+          `แจ้งเตือน: ทางร้านยังจัดส่งออเดอร์ ${orderId} ไม่สำเร็จ${reason ? ` (${reason})` : ""}\nทางร้านจะติดต่อกลับเพื่อนัดหมายใหม่ครับ 🙏`
+        ).catch((err) => console.error("Failed to send LINE failed-delivery notice:", err));
+      }
+      return NextResponse.json({ success: true });
     }
 
     // Update order status

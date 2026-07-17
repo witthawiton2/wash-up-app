@@ -30,6 +30,11 @@ export async function GET(request: NextRequest) {
       remaining: customer.remaining,
       endDate: customer.endDate ? formatDate(customer.endDate) : "-",
       renewPending: customer.renewPending,
+      // A request is only "pending admin approval" once the customer has
+      // actually submitted one (with a slip). renewPending alone is also set
+      // automatically when their package balance runs out, which must NOT
+      // block the top-up form.
+      renewRequested: !!customer.renewSlipUrl,
     });
   } catch (error) {
     console.error("Renew GET error:", error);

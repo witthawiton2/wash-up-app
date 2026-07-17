@@ -228,6 +228,7 @@ interface CustomerInfo {
   endDate: string | null;
   customerCode: string;
   renewPending: boolean;
+  renewRequested?: boolean;
 }
 
 interface OrderItem {
@@ -1002,7 +1003,7 @@ export default function MyPage() {
               </div>
             )}
 
-            {customer?.renewPending ? (
+            {customer?.renewRequested ? (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 text-center">
                 <div className="text-3xl mb-2">⏳</div>
                 <p className="text-amber-800 font-bold text-base mb-1">{s.waiting_admin}</p>

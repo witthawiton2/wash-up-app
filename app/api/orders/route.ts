@@ -6,6 +6,45 @@ import { formatDateTime } from "@/lib/timezone";
 import { getBaseUrl } from "@/lib/base-url";
 import { sendCustomerPush } from "@/lib/push";
 
+// Fire a LINE + push alert when an order's package deduction crosses a balance
+// boundary, deduped so an order that empties the package sends ONLY the
+// "ran out" message (not also the low-balance nudge):
+//   • ran out: balance crossed from >0 to <=0  → always alerts, regardless of
+//     how low it already was (fixes the case where a near-empty package is
+//     drained in one order and the old 5-threshold crossing never triggered)
+//   • low:     balance crossed from >5 to <=5 while still >0
+// No-op when the customer has no LINE id or no boundary was crossed.
+function notifyPackageBalanceCrossing(
+  customer: { id: number; lineUserId: string | null; remaining: number },
+  oldRemaining: number
+) {
+  if (!customer.lineUserId) return;
+  const LOW_BALANCE_THRESHOLD = 5;
+  const remaining = customer.remaining;
+  const baseUrl = getBaseUrl();
+  if (oldRemaining > 0 && remaining <= 0) {
+    pushTextMessage(
+      customer.lineUserId,
+      `⚠️ แพ็กเกจของคุณหมดแล้ว\n\nกดเติมแพ็กเกจได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`
+    ).catch((err) => console.error("Failed to send LINE package-out alert:", err));
+    sendCustomerPush(customer.id, {
+      title: "แพ็กเกจหมดแล้ว",
+      body: "กดเติมแพ็กเกจได้เลย",
+      url: "/my?tab=package",
+    }).catch(() => {});
+  } else if (oldRemaining > LOW_BALANCE_THRESHOLD && remaining <= LOW_BALANCE_THRESHOLD) {
+    pushTextMessage(
+      customer.lineUserId,
+      `⚠️ แพ็กเกจของคุณเหลือ ${remaining} ชิ้น\n\nเติมแพ็กเกจล่วงหน้าได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`
+    ).catch((err) => console.error("Failed to send LINE low-package alert:", err));
+    sendCustomerPush(customer.id, {
+      title: `แพ็กเกจเหลือ ${remaining} ชิ้น`,
+      body: "เติมแพ็กเกจล่วงหน้าได้เลย",
+      url: "/my?tab=package",
+    }).catch(() => {});
+  }
+}
+
 // Returns the next sequential 6-digit order number, computed from the DB's
 // current maximum (non-digit characters stripped). The DB is the source of
 // truth — the client can only see a filtered/paginated slice of orders.
@@ -238,27 +277,9 @@ export async function POST(request: NextRequest) {
       }
 
       if (updatedCustomer.lineUserId) {
-        // Alert when the order just crossed the low-balance threshold.
-        // Using the crossing condition (old > N && new <= N) prevents
-        // re-sending the same nudge on every subsequent order while the
-        // balance stays low.
-        const LOW_BALANCE_THRESHOLD = 5;
-        if (oldRemaining > LOW_BALANCE_THRESHOLD && updatedCustomer.remaining <= LOW_BALANCE_THRESHOLD) {
-          const remaining = updatedCustomer.remaining;
-          const baseUrl = getBaseUrl();
-          const message =
-            remaining <= 0
-              ? `⚠️ แพ็กเกจของคุณหมดแล้ว\n\nกดต่ออายุแพ็กเกจได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`
-              : `⚠️ แพ็กเกจของคุณเหลือ ${remaining} ชิ้น\n\nเติมแพ็กเกจล่วงหน้าได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`;
-          pushTextMessage(updatedCustomer.lineUserId, message).catch((err) =>
-            console.error("Failed to send LINE low-package alert:", err)
-          );
-          sendCustomerPush(updatedCustomer.id, {
-            title: remaining <= 0 ? "แพ็กเกจหมดแล้ว" : `แพ็กเกจเหลือ ${remaining} ชิ้น`,
-            body: "เติมแพ็กเกจล่วงหน้าได้เลย",
-            url: "/my?tab=package",
-          }).catch(() => {});
-        }
+        // Alert the customer when this order crosses a package-balance boundary
+        // (ran out / low). Deduped and always fires on "ran out".
+        notifyPackageBalanceCrossing(updatedCustomer, oldRemaining);
 
         // Alert: package expiring soon or expired
         if (updatedCustomer.endDate) {
@@ -402,24 +423,9 @@ export async function PUT(request: NextRequest) {
         });
         const oldRemainingPut = updatedCustomer.remaining + diff;
 
-        // Same threshold-crossing push as POST — only fires when this edit
-        // pushes the balance across the low-balance line.
-        const LOW_BALANCE_THRESHOLD = 5;
-        if (
-          updatedCustomer.lineUserId &&
-          oldRemainingPut > LOW_BALANCE_THRESHOLD &&
-          updatedCustomer.remaining <= LOW_BALANCE_THRESHOLD
-        ) {
-          const baseUrl = getBaseUrl();
-          const r = updatedCustomer.remaining;
-          const message =
-            r <= 0
-              ? `⚠️ แพ็กเกจของคุณหมดแล้ว\n\nกดต่ออายุแพ็กเกจได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`
-              : `⚠️ แพ็กเกจของคุณเหลือ ${r} ชิ้น\n\nเติมแพ็กเกจล่วงหน้าได้ที่นี่ครับ 😊\n${baseUrl}/my?tab=package`;
-          pushTextMessage(updatedCustomer.lineUserId, message).catch((err) =>
-            console.error("Failed to send LINE low-package alert (PUT):", err)
-          );
-        }
+        // Same crossing alert as POST — fires when this edit pushes the balance
+        // across the "ran out" (<=0) or low (<=5) line.
+        notifyPackageBalanceCrossing(updatedCustomer, oldRemainingPut);
 
         // If remaining just dropped to <=0 and renewal isn't already pending,
         // add the package renewal fee to this order's total (same behaviour as POST)

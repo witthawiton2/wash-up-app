@@ -43,6 +43,9 @@ export async function POST(request: NextRequest) {
           remaining: currentRemaining + addItems,
           endDate: newEndDate,
           renewPending: false,
+          // Clear the submitted slip so it can't linger and later be misread
+          // as a fresh pending request by the customer portal.
+          renewSlipUrl: null,
         },
       });
 
@@ -62,6 +65,7 @@ export async function POST(request: NextRequest) {
         remaining,
         endDate,
         renewPending: false,
+        renewSlipUrl: null,
       },
     });
 

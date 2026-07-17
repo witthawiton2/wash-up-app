@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate, formatDateTime } from "@/lib/timezone";
 import { apiError, getRequestLang } from "@/lib/api-i18n";
 import { parseDeliveryPhotos } from "@/lib/delivery-photos";
+import { resolveLineUser } from "@/lib/line-auth";
 
 export async function GET(
   request: NextRequest,
@@ -11,8 +12,11 @@ export async function GET(
   const lang = getRequestLang(request);
   try {
     const { orderId } = await params;
-    const lineUserId = request.nextUrl.searchParams.get("lineUserId");
-    if (!lineUserId || !orderId) {
+    const claimed = request.nextUrl.searchParams.get("lineUserId");
+    const auth = await resolveLineUser(request, claimed);
+    if ("error" in auth) return apiError(lang, "generic_error", auth.status);
+    const lineUserId = auth.userId;
+    if (!orderId) {
       return apiError(lang, "missing_fields", 400);
     }
 

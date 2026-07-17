@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import liff from "@line/liff";
 import { useSettings } from "@/lib/settings-context";
 import { useLang, type Lang } from "@/lib/i18n";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, setLineAccessToken } from "@/lib/api-client";
 import LanguageToggle from "@/components/LanguageToggle";
 
 interface PackageOption {
@@ -161,6 +161,7 @@ export default function RegisterPage() {
       .init({ liffId })
       .then(() => {
         if (liff.isLoggedIn()) {
+          setLineAccessToken(liff.getAccessToken());
           liff.getProfile().then((profile) => {
             setLineUserId(profile.userId);
             checkExistingCustomer(profile.userId);

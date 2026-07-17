@@ -5,10 +5,14 @@ import { pushTextMessage } from "@/lib/line-api";
 import { notifyAdminNewBooking, notifyAdminLine } from "@/lib/notify-admin";
 import { apiError, getRequestLang } from "@/lib/api-i18n";
 import { sendCustomerPush } from "@/lib/push";
+import { resolveLineUser } from "@/lib/line-auth";
 import {
+  ACTIVITY_LABELS,
+  SLOT_ACTIVITIES,
   bangkokDayRange,
-  extractMethodFromNote,
+  extractActivityFromNote,
   formatSlotTimeFromDate,
+  type SlotActivity,
   type SlotMethod,
 } from "@/lib/booking-slots";
 
@@ -22,16 +26,16 @@ function stripBookingFromNote(note: string | null): string {
   return note.replace(BOOKING_SEGMENT_RE, "").trim().replace(/^\|\s*/, "");
 }
 
-// The capacity for (date, time, method): a per-date override wins over the
+// The capacity for (date, time, activity): a per-date override wins over the
 // every-day default; no row at either level means unlimited (null).
 async function resolveSlotCap(
   tx: Prisma.TransactionClient,
   date: string,
   time: string,
-  method: SlotMethod
+  activity: SlotActivity
 ): Promise<number | null> {
   const rows = await tx.bookingSlotCap.findMany({
-    where: { date: { in: ["", date] }, time, method },
+    where: { date: { in: ["", date] }, time, activity },
     select: { date: true, capacity: true },
   });
   const override = rows.find((r) => r.date === date);
@@ -40,15 +44,15 @@ async function resolveSlotCap(
   return def ? def.capacity : null;
 }
 
-// How many bookings already occupy (date, time, method) on the given day,
+// How many bookings already occupy (date, time, activity) on the given day,
 // excluding the order currently being (re)booked so re-picking the same slot
-// isn't counted against itself. Prefers the deliveryMethod column, falling
-// back to the note for orders not yet backfilled.
+// isn't counted against itself. The activity is read back from the booking
+// segment stored in the order's note.
 async function countSlotUsage(
   tx: Prisma.TransactionClient,
   range: { gte: Date; lte: Date },
   time: string,
-  method: SlotMethod,
+  activity: SlotActivity,
   excludeOrderId?: string
 ): Promise<number> {
   const sameDay = await tx.order.findMany({
@@ -56,16 +60,12 @@ async function countSlotUsage(
       requestedDeliveryDate: { gte: range.gte, lte: range.lte },
       ...(excludeOrderId ? { NOT: { orderId: excludeOrderId } } : {}),
     },
-    select: { requestedDeliveryDate: true, note: true, deliveryMethod: true },
+    select: { requestedDeliveryDate: true, note: true },
   });
   return sameDay.filter((o) => {
     if (!o.requestedDeliveryDate) return false;
     if (formatSlotTimeFromDate(o.requestedDeliveryDate) !== time) return false;
-    const m =
-      o.deliveryMethod === "home" || o.deliveryMethod === "self"
-        ? (o.deliveryMethod as SlotMethod)
-        : extractMethodFromNote(o.note);
-    return m === method;
+    return extractActivityFromNote(o.note) === activity;
   }).length;
 }
 
@@ -73,9 +73,12 @@ export async function POST(request: NextRequest) {
   const lang = getRequestLang(request);
   try {
     const body = await request.json();
-    const { lineUserId, activity, orderId, date, time, phone, note, deliveryMethod } = body;
+    const { lineUserId: claimed, activity, orderId, date, time, phone, note, deliveryMethod } = body;
+    const auth = await resolveLineUser(request, claimed);
+    if ("error" in auth) return apiError(lang, "generic_error", auth.status);
+    const lineUserId = auth.userId;
 
-    if (!lineUserId || !activity || !date || !time) {
+    if (!activity || !date || !time) {
       return apiError(lang, "missing_fields", 400);
     }
 
@@ -92,10 +95,7 @@ export async function POST(request: NextRequest) {
       return apiError(lang, "customer_not_found", 404);
     }
 
-    const activityLabels: Record<string, string> = {
-      send: "ส่งเสื้อผ้าซัก",
-      receive: "รับเสื้อผ้าที่เสร็จคืน (+ส่งเสื้อผ้าใหม่)",
-    };
+    const activityLabels: Record<string, string> = ACTIVITY_LABELS;
 
     const bookingInfo = `จองคิว: ${activityLabels[activity] || activity}${orderId ? ` (${orderId})` : ""} วันที่ ${date} เวลา ${time}${methodLabel ? ` วิธี: ${methodLabel}` : ""}${phone ? ` โทร: ${phone}` : ""}${note ? ` หมายเหตุ: ${note}` : ""}`;
 
@@ -107,6 +107,11 @@ export async function POST(request: NextRequest) {
 
     const method: SlotMethod | null =
       deliveryMethod === "home" || deliveryMethod === "self" ? deliveryMethod : null;
+    // Slot capacity is capped per activity (send / receive), not per delivery
+    // method. The method is still recorded on the order for the shop's info.
+    const activityKey: SlotActivity | null = SLOT_ACTIVITIES.includes(activity as SlotActivity)
+      ? (activity as SlotActivity)
+      : null;
     const range = bangkokDayRange(date);
 
     // Enforce the slot cap and persist the booking atomically so two customers
@@ -119,10 +124,10 @@ export async function POST(request: NextRequest) {
       try {
         slotFull = await prisma.$transaction(
           async (tx) => {
-            if (method) {
-              const cap = await resolveSlotCap(tx, date, time, method);
+            if (activityKey) {
+              const cap = await resolveSlotCap(tx, date, time, activityKey);
               if (cap !== null) {
-                const used = await countSlotUsage(tx, range, time, method, orderId);
+                const used = await countSlotUsage(tx, range, time, activityKey, orderId);
                 if (used >= cap) return true; // slot full — reject
               }
             }
@@ -215,10 +220,13 @@ export async function DELETE(request: NextRequest) {
   const lang = getRequestLang(request);
   try {
     const { searchParams } = new URL(request.url);
-    const lineUserId = searchParams.get("lineUserId");
+    const claimed = searchParams.get("lineUserId");
     const orderId = searchParams.get("orderId");
+    const auth = await resolveLineUser(request, claimed);
+    if ("error" in auth) return apiError(lang, "generic_error", auth.status);
+    const lineUserId = auth.userId;
 
-    if (!lineUserId || !orderId) {
+    if (!orderId) {
       return apiError(lang, "missing_fields", 400);
     }
 

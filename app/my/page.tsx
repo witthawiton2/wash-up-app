@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSettings } from "@/lib/settings-context";
 import { useLang, type Lang } from "@/lib/i18n";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, setLineAccessToken } from "@/lib/api-client";
 import { usePullToRefresh } from "@/lib/use-pull-to-refresh";
 import LanguageToggle from "@/components/LanguageToggle";
 import { OrderCardSkeleton } from "@/components/Skeleton";
@@ -306,7 +306,7 @@ export default function MyPage() {
   const [bookingDeliveryMethod, setBookingDeliveryMethod] = useState<"" | "self" | "home">("");
   const [slotAvailability, setSlotAvailability] = useState<Record<
     string,
-    { home: { used: number; cap: number | null; full: boolean }; self: { used: number; cap: number | null; full: boolean } }
+    { send: { used: number; cap: number | null; full: boolean }; receive: { used: number; cap: number | null; full: boolean } }
   > | null>(null);
 
   // Delivery photo viewer
@@ -363,6 +363,9 @@ export default function MyPage() {
       .init({ liffId })
       .then(() => {
         if (liff.isLoggedIn()) {
+          // Hand the access token to apiFetch so customer API routes can verify
+          // identity server-side (lib/line-auth.ts) instead of trusting a param.
+          setLineAccessToken(liff.getAccessToken());
           liff.getProfile().then((profile) => {
             setLineUserId(profile.userId);
             loadData(profile.userId);
@@ -1267,13 +1270,13 @@ export default function MyPage() {
               </div>
             )}
 
-            {/* เลือกเวลา (พร้อม cap indicator ตาม method ที่เลือก) */}
-            {bookingDate && bookingTimeSlot && bookingDeliveryMethod && (
+            {/* เลือกเวลา (พร้อม cap indicator ตามกิจกรรมที่เลือก) */}
+            {bookingDate && bookingTimeSlot && bookingDeliveryMethod && bookingActivity && (
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <h4 className="text-sm font-bold text-slate-700 mb-3">{s.choose_time}</h4>
                 <div className="flex flex-wrap gap-2">
                   {slotTimes[bookingTimeSlot]?.map((t) => {
-                    const info = slotAvailability?.[t]?.[bookingDeliveryMethod as "home" | "self"];
+                    const info = slotAvailability?.[t]?.[bookingActivity as "send" | "receive"];
                     const full = !!info?.full;
                     const remaining = info && info.cap !== null ? Math.max(0, info.cap - info.used) : null;
                     const selected = bookingTime === t;

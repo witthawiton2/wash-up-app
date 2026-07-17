@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyAdminLine } from "@/lib/notify-admin";
 import { apiError, getRequestLang } from "@/lib/api-i18n";
+import { resolveLineUser } from "@/lib/line-auth";
 
 function isValidSlipUrl(url: string): boolean {
   try {
@@ -24,9 +25,12 @@ export async function POST(request: NextRequest) {
   const lang = getRequestLang(request);
   try {
     const body = await request.json();
-    const { lineUserId, orderId, slipUrl } = body;
+    const { lineUserId: claimed, orderId, slipUrl } = body;
+    const auth = await resolveLineUser(request, claimed);
+    if ("error" in auth) return apiError(lang, "generic_error", auth.status);
+    const lineUserId = auth.userId;
 
-    if (!lineUserId || !orderId || !slipUrl) {
+    if (!orderId || !slipUrl) {
       return apiError(lang, "missing_fields", 400);
     }
 

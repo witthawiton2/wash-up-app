@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiError, getRequestLang } from "@/lib/api-i18n";
+import { resolveLineUser } from "@/lib/line-auth";
 
 // Customer-editable profile fields. Anything not in this set (customerCode,
 // package, remaining, endDate, etc.) is shop-managed and intentionally
@@ -18,8 +19,10 @@ function pickEditable(body: Record<string, unknown>) {
 export async function GET(request: NextRequest) {
   const lang = getRequestLang(request);
   try {
-    const lineUserId = request.nextUrl.searchParams.get("lineUserId");
-    if (!lineUserId) return apiError(lang, "missing_fields", 400);
+    const claimed = request.nextUrl.searchParams.get("lineUserId");
+    const auth = await resolveLineUser(request, claimed);
+    if ("error" in auth) return apiError(lang, "generic_error", auth.status);
+    const lineUserId = auth.userId;
 
     const customer = await prisma.customer.findUnique({
       where: { lineUserId },
@@ -38,8 +41,10 @@ export async function PUT(request: NextRequest) {
   const lang = getRequestLang(request);
   try {
     const body = await request.json();
-    const { lineUserId, ...rest } = body;
-    if (!lineUserId) return apiError(lang, "missing_fields", 400);
+    const { lineUserId: claimed, ...rest } = body;
+    const auth = await resolveLineUser(request, claimed);
+    if ("error" in auth) return apiError(lang, "generic_error", auth.status);
+    const lineUserId = auth.userId;
 
     const data = pickEditable(rest);
     if (!data.name || !data.phone) return apiError(lang, "missing_fields", 400);

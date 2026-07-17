@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, use } from "react";
 import Link from "next/link";
 import liff from "@line/liff";
 import { useLang, type Lang } from "@/lib/i18n";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, setLineAccessToken } from "@/lib/api-client";
 import LanguageToggle from "@/components/LanguageToggle";
 
 const STR: Record<Lang, Record<string, string>> = {
@@ -155,6 +155,7 @@ export default function OrderDetailPage({
       .init({ liffId })
       .then(() => {
         if (liff.isLoggedIn()) {
+          setLineAccessToken(liff.getAccessToken());
           liff.getProfile().then((profile) => {
             setLineUserId(profile.userId);
             loadOrder(profile.userId);

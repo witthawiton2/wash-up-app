@@ -15,20 +15,20 @@ export const SLOT_TIMES: readonly string[] = [
   "20:00",
 ] as const;
 
+// The delivery method the customer picks for how they receive their laundry.
+// Kept for typing Order.deliveryMethod — it no longer drives slot capacity.
 export const SLOT_METHODS = ["home", "self"] as const;
 export type SlotMethod = (typeof SLOT_METHODS)[number];
 
-// Maps the Thai method label (stored in Order.note by /api/my/booking)
-// back to the canonical key we cap on.
+// Maps the Thai method label (stored in the "วิธี:" note segment) back to the
+// delivery-method key. Kept for the deliveryMethod backfill — capacity no
+// longer keys on method.
 export function methodKeyFromLabel(label: string): SlotMethod | null {
   if (label === "ฝากที่พัก") return "home";
   if (label === "รับด้วยตัวเอง") return "self";
   return null;
 }
 
-// Same regex the /api/bookings list route uses. Kept here so callers
-// that only need the method (availability endpoint, booking POST) don't
-// have to depend on that whole module.
 export const NOTE_METHOD_RE = /\sวิธี:\s+([^|]+?)(?=\s+(?:โทร:|หมายเหตุ:)|\s+\||$)/;
 
 export function extractMethodFromNote(note: string | null): SlotMethod | null {
@@ -36,6 +36,40 @@ export function extractMethodFromNote(note: string | null): SlotMethod | null {
   const m = note.match(NOTE_METHOD_RE);
   if (!m) return null;
   return methodKeyFromLabel(m[1].trim());
+}
+
+// Booking activities — the dimension slot capacity is now capped on.
+export const SLOT_ACTIVITIES = ["send", "receive"] as const;
+export type SlotActivity = (typeof SLOT_ACTIVITIES)[number];
+
+// Canonical Thai labels for each activity, shown to the customer and stored
+// in the "จองคิว: ..." note segment. Single source of truth so the booking
+// route (which writes them) and note parsing (which reads them back for
+// usage counts) can never drift apart.
+export const ACTIVITY_LABELS: Record<SlotActivity, string> = {
+  send: "ส่งเสื้อผ้าซัก",
+  receive: "รับเสื้อผ้าที่เสร็จคืน (+ส่งเสื้อผ้าใหม่)",
+};
+
+// Map a stored activity label back to its key. Uses substring matching so a
+// trailing " (orderId)" left on the note segment doesn't defeat the lookup,
+// and checks `receive` first since its label also contains "ส่งเสื้อผ้า".
+export function activityKeyFromLabel(label: string): SlotActivity | null {
+  if (label.includes("รับเสื้อผ้าที่เสร็จคืน")) return "receive";
+  if (label.includes("ส่งเสื้อผ้าซัก")) return "send";
+  return null;
+}
+
+// The booking note carries "จองคิว: {activityLabel} (orderId) วันที่ ...".
+// Pull the activity key back out so we can count how many bookings of each
+// activity already occupy a slot.
+export const NOTE_ACTIVITY_RE = /จองคิว:\s*(.+?)\s+วันที่/;
+
+export function extractActivityFromNote(note: string | null): SlotActivity | null {
+  if (!note) return null;
+  const m = note.match(NOTE_ACTIVITY_RE);
+  if (!m) return null;
+  return activityKeyFromLabel(m[1]);
 }
 
 // Bangkok-local day boundaries as UTC Dates, for Prisma range queries.

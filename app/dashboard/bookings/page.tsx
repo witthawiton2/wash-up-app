@@ -12,6 +12,7 @@ interface Booking {
   status: string;
   requestedDate: string;
   requestedTime: string;
+  activity: string;
   deliveryMethod: string;
   note: string;
   orderDate: string;
@@ -209,11 +210,18 @@ export default function BookingsPage() {
                         </div>
                       </div>
 
-                      {b.deliveryMethod && (
-                        <div className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 mb-2">
-                          📦 {b.deliveryMethod}
-                        </div>
-                      )}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                        {b.activity && (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
+                            🧺 {b.activity}
+                          </span>
+                        )}
+                        {b.deliveryMethod && (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                            📦 {b.deliveryMethod}
+                          </span>
+                        )}
+                      </div>
 
                       {b.items.length > 0 && (
                         <div className="text-xs text-slate-500 mb-1">

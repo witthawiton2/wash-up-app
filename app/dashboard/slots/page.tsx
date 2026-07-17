@@ -2,25 +2,25 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Spinner from "@/components/Spinner";
-import { SLOT_TIMES, SLOT_METHODS, type SlotMethod } from "@/lib/booking-slots";
+import { SLOT_TIMES, SLOT_ACTIVITIES, type SlotActivity } from "@/lib/booking-slots";
 import { useRequireAdmin } from "@/lib/use-require-admin";
 
-type CapRow = { time: string; method: string; capacity: number };
+type CapRow = { time: string; activity: string; capacity: number };
 
 // Client-side cell value:
 //  - "" means "unlimited" in default mode, or "inherit default" in override mode
 //  - "0" means "closed"
 //  - any positive integer string means "cap N"
-type CapMap = Record<string, Record<SlotMethod, string>>;
+type CapMap = Record<string, Record<SlotActivity, string>>;
 
-const METHOD_META: Record<SlotMethod, { label: string; icon: string }> = {
-  home: { label: "ฝากที่พัก", icon: "🏠" },
-  self: { label: "รับด้วยตัวเอง", icon: "🏪" },
+const ACTIVITY_META: Record<SlotActivity, { label: string; icon: string }> = {
+  send: { label: "ส่งเสื้อผ้าซัก", icon: "🧺" },
+  receive: { label: "รับเสื้อผ้าคืน", icon: "👕" },
 };
 
 function emptyCapMap(): CapMap {
   const out: CapMap = {};
-  for (const t of SLOT_TIMES) out[t] = { home: "", self: "" };
+  for (const t of SLOT_TIMES) out[t] = { send: "", receive: "" };
   return out;
 }
 
@@ -28,8 +28,8 @@ function rowsToCapMap(rows: CapRow[]): CapMap {
   const next = emptyCapMap();
   for (const r of rows) {
     if (!next[r.time]) continue;
-    if (r.method === "home" || r.method === "self") {
-      next[r.time][r.method] = String(r.capacity);
+    if (r.activity === "send" || r.activity === "receive") {
+      next[r.time][r.activity] = String(r.capacity);
     }
   }
   return next;
@@ -80,17 +80,17 @@ export default function BookingSlotsPage() {
     load(editDate);
   }, [editDate, load]);
 
-  const setCell = (time: string, method: SlotMethod, value: string) => {
+  const setCell = (time: string, activity: SlotActivity, value: string) => {
     setCaps((prev) => ({
       ...prev,
-      [time]: { ...prev[time], [method]: value },
+      [time]: { ...prev[time], [activity]: value },
     }));
   };
 
-  const bulkFill = (method: SlotMethod, value: string) => {
+  const bulkFill = (activity: SlotActivity, value: string) => {
     setCaps((prev) => {
       const next: CapMap = { ...prev };
-      for (const t of SLOT_TIMES) next[t] = { ...next[t], [method]: value };
+      for (const t of SLOT_TIMES) next[t] = { ...next[t], [activity]: value };
       return next;
     });
   };
@@ -103,16 +103,16 @@ export default function BookingSlotsPage() {
     if (saving) return;
     setSaving(true);
     try {
-      const items: { time: string; method: string; capacity: number | null }[] = [];
+      const items: { time: string; activity: string; capacity: number | null }[] = [];
       for (const t of SLOT_TIMES) {
-        for (const m of SLOT_METHODS) {
-          const raw = caps[t]?.[m] ?? "";
+        for (const a of SLOT_ACTIVITIES) {
+          const raw = caps[t]?.[a] ?? "";
           if (raw === "") {
-            items.push({ time: t, method: m, capacity: null }); // delete row
+            items.push({ time: t, activity: a, capacity: null }); // delete row
           } else {
             const n = parseInt(raw, 10);
             if (!Number.isFinite(n) || n < 0) continue;
-            items.push({ time: t, method: m, capacity: n });
+            items.push({ time: t, activity: a, capacity: n });
           }
         }
       }
@@ -136,9 +136,9 @@ export default function BookingSlotsPage() {
   };
 
   // Placeholder shown when a cell is blank — differs by mode.
-  const placeholderFor = (time: string, method: SlotMethod): string => {
+  const placeholderFor = (time: string, activity: SlotActivity): string => {
     if (!isOverride) return "ไม่จำกัด";
-    const d = defaults[time]?.[method] ?? "";
+    const d = defaults[time]?.[activity] ?? "";
     if (d === "") return "ตามค่าเริ่มต้น (ไม่จำกัด)";
     if (d === "0") return "ตามค่าเริ่มต้น (ปิด)";
     return `ตามค่าเริ่มต้น (${d})`;
@@ -202,7 +202,7 @@ export default function BookingSlotsPage() {
           </>
         ) : (
           <>
-            <p>ตั้งจำนวนคิวสูงสุดต่อช่วงเวลา แยกตามวิธีรับ-ส่ง (ใช้กับทุกวัน)</p>
+            <p>ตั้งจำนวนคิวสูงสุดต่อช่วงเวลา แยกตามกิจกรรม (ส่งเสื้อผ้าซัก / รับเสื้อผ้าคืน) ใช้กับทุกวัน</p>
             <ul className="list-disc pl-5 mt-1">
               <li>ปล่อยว่าง = ไม่จำกัด</li>
               <li><span className="font-mono">0</span> = ปิดสล็อตนี้ ลูกค้าจะเลือกไม่ได้</li>
@@ -224,19 +224,19 @@ export default function BookingSlotsPage() {
               <thead>
                 <tr>
                   <th className="text-left">เวลา</th>
-                  {SLOT_METHODS.map((m) => (
-                    <th key={m} className="text-center">
+                  {SLOT_ACTIVITIES.map((a) => (
+                    <th key={a} className="text-center">
                       <div className="flex items-center justify-center gap-2">
-                        <span>{METHOD_META[m].icon}</span>
-                        <span>{METHOD_META[m].label}</span>
+                        <span>{ACTIVITY_META[a].icon}</span>
+                        <span>{ACTIVITY_META[a].label}</span>
                       </div>
                     </th>
                   ))}
                 </tr>
                 <tr>
                   <th className="text-left text-xs text-slate-400 font-normal">ตั้งค่ารวม →</th>
-                  {SLOT_METHODS.map((m) => (
-                    <th key={m} className="text-center">
+                  {SLOT_ACTIVITIES.map((a) => (
+                    <th key={a} className="text-center">
                       <div className="flex items-center justify-center gap-1">
                         <input
                           type="number"
@@ -245,7 +245,7 @@ export default function BookingSlotsPage() {
                           className="w-16 px-2 py-1 rounded border border-slate-300 text-xs text-center"
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
-                              bulkFill(m, (e.target as HTMLInputElement).value);
+                              bulkFill(a, (e.target as HTMLInputElement).value);
                             }
                           }}
                         />
@@ -259,17 +259,17 @@ export default function BookingSlotsPage() {
                 {SLOT_TIMES.map((t) => (
                   <tr key={t}>
                     <td className="font-mono text-slate-700">{t}</td>
-                    {SLOT_METHODS.map((m) => {
-                      const value = caps[t]?.[m] ?? "";
+                    {SLOT_ACTIVITIES.map((a) => {
+                      const value = caps[t]?.[a] ?? "";
                       const closed = value === "0";
                       return (
-                        <td key={m} className="text-center">
+                        <td key={a} className="text-center">
                           <input
                             type="number"
                             min={0}
                             value={value}
-                            onChange={(e) => setCell(t, m, e.target.value)}
-                            placeholder={placeholderFor(t, m)}
+                            onChange={(e) => setCell(t, a, e.target.value)}
+                            placeholder={placeholderFor(t, a)}
                             className={`w-40 px-2 py-1 rounded border text-sm text-center ${
                               closed
                                 ? "border-red-300 bg-red-50 text-red-700"

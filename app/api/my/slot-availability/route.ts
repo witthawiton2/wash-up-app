@@ -2,17 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   SLOT_TIMES,
-  SLOT_METHODS,
-  type SlotMethod,
+  SLOT_ACTIVITIES,
+  type SlotActivity,
   bangkokDayRange,
-  extractMethodFromNote,
+  extractActivityFromNote,
   formatSlotTimeFromDate,
 } from "@/lib/booking-slots";
 import { apiError, getRequestLang } from "@/lib/api-i18n";
 
 // Response shape:
-//   { "9:00": { home: { used, cap, full }, self: { used, cap, full } }, ... }
-// cap is null when the admin hasn't set a cap for that (time, method).
+//   { "9:00": { send: { used, cap, full }, receive: { used, cap, full } }, ... }
+// cap is null when the admin hasn't set a cap for that (time, activity).
 // full is `used >= cap` when cap != null, else false.
 
 export async function GET(request: NextRequest) {
@@ -25,49 +25,46 @@ export async function GET(request: NextRequest) {
     const [orders, caps] = await Promise.all([
       prisma.order.findMany({
         where: { requestedDeliveryDate: { gte: range.gte, lte: range.lte } },
-        select: { requestedDeliveryDate: true, note: true, deliveryMethod: true },
+        select: { requestedDeliveryDate: true, note: true },
       }),
       // Default caps (date "") plus any overrides for this specific date.
       prisma.bookingSlotCap.findMany({
         where: { date: { in: ["", date] } },
-        select: { date: true, time: true, method: true, capacity: true },
+        select: { date: true, time: true, activity: true, capacity: true },
       }),
     ]);
 
-    // Count bookings by (time, method). Prefer the deliveryMethod column;
-    // fall back to parsing the note for rows not yet backfilled.
-    const used = new Map<string, Map<SlotMethod, number>>();
+    // Count bookings by (time, activity), reading the activity back from the
+    // booking segment stored in each order's note.
+    const used = new Map<string, Map<SlotActivity, number>>();
     for (const o of orders) {
       if (!o.requestedDeliveryDate) continue;
       const time = formatSlotTimeFromDate(o.requestedDeliveryDate);
-      const method =
-        (o.deliveryMethod === "home" || o.deliveryMethod === "self"
-          ? (o.deliveryMethod as SlotMethod)
-          : null) ?? extractMethodFromNote(o.note);
-      if (!method) continue;
+      const activity = extractActivityFromNote(o.note);
+      if (!activity) continue;
       if (!used.has(time)) used.set(time, new Map());
       const m = used.get(time)!;
-      m.set(method, (m.get(method) ?? 0) + 1);
+      m.set(activity, (m.get(activity) ?? 0) + 1);
     }
 
     // Resolve caps: an override row (non-empty date) wins over the default ("").
-    const capMap = new Map<string, Map<SlotMethod, number>>();
+    const capMap = new Map<string, Map<SlotActivity, number>>();
     for (const c of caps) {
-      const method = c.method as SlotMethod;
-      if (!SLOT_METHODS.includes(method)) continue;
+      const activity = c.activity as SlotActivity;
+      if (!SLOT_ACTIVITIES.includes(activity)) continue;
       if (!capMap.has(c.time)) capMap.set(c.time, new Map());
       const row = capMap.get(c.time)!;
-      if (c.date === date || !row.has(method)) row.set(method, c.capacity);
+      if (c.date === date || !row.has(activity)) row.set(activity, c.capacity);
     }
 
-    const out: Record<string, Record<SlotMethod, { used: number; cap: number | null; full: boolean }>> = {};
+    const out: Record<string, Record<SlotActivity, { used: number; cap: number | null; full: boolean }>> = {};
     for (const time of SLOT_TIMES) {
-      out[time] = { home: { used: 0, cap: null, full: false }, self: { used: 0, cap: null, full: false } };
-      for (const method of SLOT_METHODS) {
-        const u = used.get(time)?.get(method) ?? 0;
-        const capVal = capMap.get(time)?.get(method);
+      out[time] = { send: { used: 0, cap: null, full: false }, receive: { used: 0, cap: null, full: false } };
+      for (const activity of SLOT_ACTIVITIES) {
+        const u = used.get(time)?.get(activity) ?? 0;
+        const capVal = capMap.get(time)?.get(activity);
         const cap = capVal === undefined ? null : capVal;
-        out[time][method] = {
+        out[time][activity] = {
           used: u,
           cap,
           full: cap !== null && u >= cap,

@@ -207,10 +207,10 @@ model BookingSlotCap {
   id        Int      @id @default(autoincrement())
   date      String   @default("") // "" = default (every day) · "YYYY-MM-DD" = override for that date (holidays/peak days)
   time      String   // "9:00" — matches the HH:MM strings in /my slotTimes
-  method    String   // "home" | "self"
-  capacity  Int      @default(0) // 0 = closed for this method
+  activity  String   // "send" | "receive" — the booking activity this cap limits
+  capacity  Int      @default(0) // 0 = closed for this activity
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([date, time, method])
+  @@unique([date, time, activity])
 }

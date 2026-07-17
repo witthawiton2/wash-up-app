@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { formatDate, formatTime } from "@/lib/timezone";
+import { extractActivityFromNote } from "@/lib/booking-slots";
+
+// Short activity labels for the admin bookings badge.
+const ACTIVITY_SHORT: Record<string, string> = {
+  send: "ส่งเสื้อผ้าซัก",
+  receive: "รับเสื้อผ้าคืน",
+};
 
 // note format from POST /api/my/booking:
 //   "จองคิว: <activity> [(orderId)] วันที่ YYYY-MM-DD เวลา HH:MM[ โทร: ...][ หมายเหตุ: ...]"
@@ -65,6 +72,8 @@ export async function GET(request: NextRequest) {
       const requestedDate = match ? reformatNoteDate(match[1]) : formatDate(o.requestedDeliveryDate!);
       const requestedTime = match ? match[2] : formatTime(o.requestedDeliveryDate!);
       const deliveryMethod = methodMatch ? methodMatch[1].trim() : "";
+      const activityKey = extractActivityFromNote(note);
+      const activity = activityKey ? ACTIVITY_SHORT[activityKey] : "";
 
       // Strip the duplicated "จองคิว: ..." segment from the note for display.
       const cleanedNote = note.replace(BOOKING_SEGMENT_RE, "").trim().replace(/^\|\s*/, "");
@@ -80,6 +89,7 @@ export async function GET(request: NextRequest) {
         status: o.status,
         requestedDate,
         requestedTime,
+        activity,
         deliveryMethod,
         note: cleanedNote,
         orderDate: formatDate(o.orderDate),

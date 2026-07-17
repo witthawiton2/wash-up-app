@@ -16,15 +16,35 @@ export async function POST(
     const note = typeof body.note === "string" ? body.note.trim() || null : null;
 
     // Bookkeeping movement + quantity adjust in a transaction so the running
-    // total always agrees with the sum of movements.
-    const [, item] = await prisma.$transaction([
-      prisma.stockMovement.create({ data: { stockId, delta, note } }),
-      prisma.stock.update({
+    // total always agrees with the sum of movements. Reject moves that would
+    // drive the quantity below 0 rather than allowing negative stock.
+    const result = await prisma.$transaction(async (tx) => {
+      const current = await tx.stock.findUnique({
+        where: { id: stockId },
+        select: { quantity: true },
+      });
+      if (!current) return { notFound: true as const };
+      if (current.quantity + delta < 0) {
+        return { insufficient: true as const, available: current.quantity };
+      }
+      await tx.stockMovement.create({ data: { stockId, delta, note } });
+      const item = await tx.stock.update({
         where: { id: stockId },
         data: { quantity: { increment: delta } },
-      }),
-    ]);
-    return NextResponse.json(item);
+      });
+      return { item };
+    });
+
+    if ("notFound" in result) {
+      return NextResponse.json({ error: "Stock item not found" }, { status: 404 });
+    }
+    if ("insufficient" in result) {
+      return NextResponse.json(
+        { error: `สต็อกไม่พอ (คงเหลือ ${result.available})`, available: result.available },
+        { status: 400 }
+      );
+    }
+    return NextResponse.json(result.item);
   } catch (error) {
     console.error("Failed to record stock movement:", error);
     return NextResponse.json({ error: "Failed to record stock movement" }, { status: 500 });

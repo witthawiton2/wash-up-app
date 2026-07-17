@@ -23,6 +23,15 @@ const statusBadge: Record<string, string> = {
   "ส่งแล้ว": "badge-gray",
 };
 
+// Minutes-since-midnight for an "H:MM"/"HH:MM" slot. Customer-picked slots
+// are stored non-padded ("9:00"), so string compare would sort "9:00" after
+// "10:00"; sort numerically instead. Malformed/empty → sorts last.
+function timeMinutes(time: string): number {
+  const [h, m] = (time || "").split(":").map((n) => parseInt(n, 10));
+  if (Number.isNaN(h) || Number.isNaN(m)) return Number.MAX_SAFE_INTEGER;
+  return h * 60 + m;
+}
+
 // Colour the time chip by rough period so admins can still eyeball
 // morning vs afternoon vs evening at a glance, even though each
 // concrete HH:MM slot renders as its own group.
@@ -86,8 +95,9 @@ export default function BookingsPage() {
           b.phone.includes(q)
       );
     }
-    // Sort by time ascending — values are already zero-padded "HH:MM"
-    return [...list].sort((a, b) => a.requestedTime.localeCompare(b.requestedTime));
+    // Sort by time ascending. Slot strings may be non-padded ("9:00"), so
+    // compare by minutes-of-day, not lexicographically.
+    return [...list].sort((a, b) => timeMinutes(a.requestedTime) - timeMinutes(b.requestedTime));
   })();
 
   // Bucket by concrete HH:MM. Missing/malformed times fall into a
@@ -102,7 +112,7 @@ export default function BookingsPage() {
     return Array.from(byTime.entries()).sort(([a], [b]) => {
       if (a === "--:--") return 1;
       if (b === "--:--") return -1;
-      return a.localeCompare(b);
+      return timeMinutes(a) - timeMinutes(b);
     });
   }, [filtered]);
 

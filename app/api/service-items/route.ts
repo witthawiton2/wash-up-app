@@ -7,13 +7,11 @@ export async function GET() {
       where: { active: true },
       orderBy: { name: "asc" },
     });
-    // Catalog rarely changes — let the browser + edge cache for a minute,
-    // and serve stale for up to 5 minutes while revalidating in the
-    // background. POST/PUT/DELETE here return fresh responses anyway.
+    // No caching: the admin catalog editor refetches right after add/edit/
+    // delete and must see its own write immediately. A public max-age here
+    // made the just-saved change invisible for up to a minute.
     return NextResponse.json(items, {
-      headers: {
-        "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
-      },
+      headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
     console.error("Failed to fetch service items:", error);

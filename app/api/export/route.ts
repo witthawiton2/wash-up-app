@@ -9,9 +9,12 @@ export async function GET(request: NextRequest) {
     const to = request.nextUrl.searchParams.get("to");
 
     if (type === "orders") {
+      // Anchor the day window to Asia/Bangkok (+07:00) to match every other
+      // date query in the app — otherwise a UTC server shifts the window ~7h
+      // and orders near Bangkok midnight land in the wrong day's CSV.
       const dateFilter: Record<string, unknown> = {};
-      if (from) dateFilter.gte = new Date(`${from}T00:00:00`);
-      if (to) dateFilter.lte = new Date(`${to}T23:59:59`);
+      if (from) dateFilter.gte = new Date(`${from}T00:00:00+07:00`);
+      if (to) dateFilter.lte = new Date(`${to}T23:59:59.999+07:00`);
 
       const orders = await prisma.order.findMany({
         where: from || to ? { orderDate: dateFilter } : undefined,

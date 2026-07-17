@@ -178,10 +178,19 @@ export async function DELETE(request: NextRequest) {
 }
 
 function parseThaiDate(dateStr: string): Date | null {
-  // Expected format: DD/MM/YYYY
+  // Accepts DD/MM/YYYY where YYYY may be Buddhist (พ.ศ., e.g. 2569) or
+  // Gregorian (ค.ศ., e.g. 2026). The customer table renders Buddhist years
+  // (formatDate → th-TH locale), so editing a customer round-trips a Buddhist
+  // year back here — without conversion `new Date(2569, …)` would push the
+  // expiry ~543 years into the future. Treat any year >= 2400 as Buddhist.
   const parts = dateStr.split("/");
   if (parts.length !== 3) return null;
-  const [day, month, year] = parts.map(Number);
-  if (!day || !month || !year) return null;
-  return new Date(year, month - 1, day);
+  const [day, month, yearRaw] = parts.map(Number);
+  if (!day || !month || !yearRaw) return null;
+  const year = yearRaw >= 2400 ? yearRaw - 543 : yearRaw;
+  // Anchor to Bangkok midnight so the stored instant reads back as the same
+  // calendar day everywhere (formatDate is Asia/Bangkok).
+  const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00+07:00`;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
 }

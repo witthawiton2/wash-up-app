@@ -36,6 +36,7 @@ export default function PaymentsPage() {
   const [confirmMethod, setConfirmMethod] = useState<string>("cash");
   const [dateFrom, setDateFrom] = useState<string>(firstOfMonthIso());
   const [dateTo, setDateTo] = useState<string>(todayIso());
+  const [counts, setCounts] = useState({ pending: 0, unpaid: 0 });
 
   const isPaidView = activeFilter === "ชำระแล้ว";
 
@@ -54,11 +55,31 @@ export default function PaymentsPage() {
     }
   }, [isPaidView, dateFrom, dateTo]);
 
+  // Pending/unpaid counts for the summary cards — always from the unfiltered
+  // list so they stay correct regardless of the active tab.
+  const fetchCounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/payments");
+      if (res.ok) {
+        const list: Payment[] = await res.json();
+        setCounts({
+          pending: list.filter((p) => p.paymentStatus === "pending").length,
+          unpaid: list.filter((p) => p.paymentStatus === "unpaid").length,
+        });
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     fetchPayments();
   }, [fetchPayments]);
 
+  useEffect(() => {
+    fetchCounts();
+  }, [fetchCounts]);
+
   usePolling(fetchPayments, 30000);
+  usePolling(fetchCounts, 30000);
 
   const handleAction = async (orderId: string, action: "confirm" | "reject") => {
     setSaving(true);
@@ -69,11 +90,14 @@ export default function PaymentsPage() {
         body: JSON.stringify({ orderId, action, method: action === "confirm" ? confirmMethod : undefined }),
       });
       if (res.ok) {
-        await fetchPayments();
+        await Promise.all([fetchPayments(), fetchCounts()]);
         setConfirmTarget(null);
+      } else {
+        alert("ดำเนินการไม่สำเร็จ กรุณาลองใหม่");
       }
     } catch (e) {
       console.error(e);
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่");
     } finally {
       setSaving(false);
     }
@@ -100,8 +124,11 @@ export default function PaymentsPage() {
     ? filtered.reduce((sum, p) => sum + p.totalAmount, 0)
     : 0;
 
-  const pendingCount = payments.filter((p) => p.paymentStatus === "pending").length;
-  const unpaidCount = payments.filter((p) => p.paymentStatus === "unpaid").length;
+  // Summary counts come from a dedicated unfiltered fetch — deriving them from
+  // `payments` would read 0 while the "ชำระแล้ว" tab is active (that view
+  // replaces the list with paid-only rows).
+  const pendingCount = counts.pending;
+  const unpaidCount = counts.unpaid;
 
   return (
     <div>

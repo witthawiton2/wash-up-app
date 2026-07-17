@@ -275,7 +275,6 @@ export default function CustomerPage() {
                 <th>ชื่อ</th>
                 <th>เบอร์โทร</th>
                 <th>ที่อยู่</th>
-                <th className="hide-mobile">LINE User ID</th>
                 <th>แพคเกจ</th>
                 <th className="hide-mobile">วันหมดอายุ</th>
                 <th className="text-right">ยอดคงเหลือ</th>
@@ -285,11 +284,11 @@ export default function CustomerPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-8 text-slate-400">กำลังโหลด...</td>
+                  <td colSpan={8} className="text-center py-8 text-slate-400">กำลังโหลด...</td>
                 </tr>
               ) : customers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="text-center py-8 text-slate-400">ยังไม่มีลูกค้า</td>
+                  <td colSpan={8} className="text-center py-8 text-slate-400">ยังไม่มีลูกค้า</td>
                 </tr>
               ) : (
                 pagedCustomers.map((c) => (
@@ -304,7 +303,6 @@ export default function CustomerPage() {
                     </td>
                     <td className="text-slate-500">{c.phone}</td>
                     <td className="text-slate-500">{c.address}</td>
-                    <td className="text-slate-500 text-xs font-mono hide-mobile">{c.lineUserId ? c.lineUserId.slice(0, 10) + "..." : <span className="text-slate-300">-</span>}</td>
                     <td><span className="badge badge-blue">{c.package || "-"}</span></td>
                     <td className="text-slate-500 hide-mobile">{c.endDate}</td>
                     <td className="text-right font-medium">

@@ -39,7 +39,7 @@ export default function DriverHome() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/deliveries?days=7");
+      const res = await fetch("/api/deliveries?days=7&booked=1");
       if (res.ok) setDeliveries(await res.json());
     } finally {
       setLoading(false);

@@ -10,10 +10,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const daysParam = searchParams.get("days");
     const limitParam = searchParams.get("limit");
+    // booked=1 → only orders the customer actually booked a queue for
+    // (requestedDeliveryDate set). The driver app uses this so it lists real
+    // delivery appointments; the admin view omits it to see every order.
+    const bookedOnly = searchParams.get("booked") === "1";
 
     const where: Record<string, unknown> = {
       status: { in: ["พร้อมส่ง", "กำลังจัดส่ง", "ส่งแล้ว"] },
     };
+    if (bookedOnly) {
+      where.requestedDeliveryDate = { not: null };
+    }
     const days = daysParam ? parseInt(daysParam, 10) : 30;
     if (!isNaN(days) && days > 0) {
       const from = new Date();

@@ -2,9 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SLOT_METHODS } from "@/lib/booking-slots";
 
-export async function GET() {
+// Caps live at two levels:
+//   date = ""           → default, applies to every day
+//   date = "YYYY-MM-DD"  → override for that specific date (holidays/peak days)
+// The editor loads/saves one level at a time via the ?date= param (blank = default).
+
+export async function GET(request: NextRequest) {
   try {
+    const date = request.nextUrl.searchParams.get("date") ?? "";
     const rows = await prisma.bookingSlotCap.findMany({
+      where: { date },
       select: { time: true, method: true, capacity: true },
     });
     return NextResponse.json(rows, { headers: { "Cache-Control": "no-store" } });
@@ -23,9 +30,10 @@ interface CapInput { time: string; method: string; capacity: number | null }
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    const date = typeof body?.date === "string" ? body.date.trim() : "";
     const items: CapInput[] = Array.isArray(body?.items) ? body.items : [];
 
-    // Split into deletes (capacity === null → "unlimited") and upserts.
+    // Split into deletes (capacity === null → "unlimited"/inherit) and upserts.
     const deletes: { time: string; method: string }[] = [];
     const upserts: { time: string; method: string; capacity: number }[] = [];
     for (const it of items) {
@@ -45,19 +53,20 @@ export async function PUT(request: NextRequest) {
     await prisma.$transaction([
       ...deletes.map((d) =>
         prisma.bookingSlotCap.deleteMany({
-          where: { time: d.time, method: d.method },
+          where: { date, time: d.time, method: d.method },
         })
       ),
       ...upserts.map((u) =>
         prisma.bookingSlotCap.upsert({
-          where: { time_method: { time: u.time, method: u.method } },
-          create: u,
+          where: { date_time_method: { date, time: u.time, method: u.method } },
+          create: { date, ...u },
           update: { capacity: u.capacity },
         })
       ),
     ]);
 
     const rows = await prisma.bookingSlotCap.findMany({
+      where: { date },
       select: { time: true, method: true, capacity: true },
     });
     return NextResponse.json(rows);

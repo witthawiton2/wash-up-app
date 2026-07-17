@@ -57,6 +57,7 @@ model Order {
   checkPhotos   String?
   note                  String?
   requestedDeliveryDate DateTime?
+  deliveryMethod        String?   // "home" | "self" — the booking method, mirrors the label stored in note
   paymentSlipUrl        String?
   paymentStatus         String   @default("unpaid") // unpaid, pending, paid
   paymentMethod         String?  // cash | qr_promptpay | bank_transfer | other
@@ -204,11 +205,12 @@ model Settings {
 
 model BookingSlotCap {
   id        Int      @id @default(autoincrement())
+  date      String   @default("") // "" = default (every day) · "YYYY-MM-DD" = override for that date (holidays/peak days)
   time      String   // "9:00" — matches the HH:MM strings in /my slotTimes
   method    String   // "home" | "self"
   capacity  Int      @default(0) // 0 = closed for this method
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([time, method])
+  @@unique([date, time, method])
 }

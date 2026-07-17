@@ -25,31 +25,39 @@ export async function GET(request: NextRequest) {
     const [orders, caps] = await Promise.all([
       prisma.order.findMany({
         where: { requestedDeliveryDate: { gte: range.gte, lte: range.lte } },
-        select: { requestedDeliveryDate: true, note: true },
+        select: { requestedDeliveryDate: true, note: true, deliveryMethod: true },
       }),
+      // Default caps (date "") plus any overrides for this specific date.
       prisma.bookingSlotCap.findMany({
-        select: { time: true, method: true, capacity: true },
+        where: { date: { in: ["", date] } },
+        select: { date: true, time: true, method: true, capacity: true },
       }),
     ]);
 
-    // Count bookings by (time, method).
+    // Count bookings by (time, method). Prefer the deliveryMethod column;
+    // fall back to parsing the note for rows not yet backfilled.
     const used = new Map<string, Map<SlotMethod, number>>();
     for (const o of orders) {
       if (!o.requestedDeliveryDate) continue;
       const time = formatSlotTimeFromDate(o.requestedDeliveryDate);
-      const method = extractMethodFromNote(o.note);
+      const method =
+        (o.deliveryMethod === "home" || o.deliveryMethod === "self"
+          ? (o.deliveryMethod as SlotMethod)
+          : null) ?? extractMethodFromNote(o.note);
       if (!method) continue;
       if (!used.has(time)) used.set(time, new Map());
       const m = used.get(time)!;
       m.set(method, (m.get(method) ?? 0) + 1);
     }
 
+    // Resolve caps: an override row (non-empty date) wins over the default ("").
     const capMap = new Map<string, Map<SlotMethod, number>>();
     for (const c of caps) {
       const method = c.method as SlotMethod;
       if (!SLOT_METHODS.includes(method)) continue;
       if (!capMap.has(c.time)) capMap.set(c.time, new Map());
-      capMap.get(c.time)!.set(method, c.capacity);
+      const row = capMap.get(c.time)!;
+      if (c.date === date || !row.has(method)) row.set(method, c.capacity);
     }
 
     const out: Record<string, Record<SlotMethod, { used: number; cap: number | null; full: boolean }>> = {};

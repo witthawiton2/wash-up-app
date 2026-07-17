@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { pushTextMessage } from "@/lib/line-api";
 import { notifyAdminNewBooking, notifyAdminLine } from "@/lib/notify-admin";
@@ -19,6 +20,53 @@ const BOOKING_SEGMENT_RE = /(?:^|\s\|\s)จองคิว:[^|]*(?=\s\||$)/g;
 function stripBookingFromNote(note: string | null): string {
   if (!note) return "";
   return note.replace(BOOKING_SEGMENT_RE, "").trim().replace(/^\|\s*/, "");
+}
+
+// The capacity for (date, time, method): a per-date override wins over the
+// every-day default; no row at either level means unlimited (null).
+async function resolveSlotCap(
+  tx: Prisma.TransactionClient,
+  date: string,
+  time: string,
+  method: SlotMethod
+): Promise<number | null> {
+  const rows = await tx.bookingSlotCap.findMany({
+    where: { date: { in: ["", date] }, time, method },
+    select: { date: true, capacity: true },
+  });
+  const override = rows.find((r) => r.date === date);
+  if (override) return override.capacity;
+  const def = rows.find((r) => r.date === "");
+  return def ? def.capacity : null;
+}
+
+// How many bookings already occupy (date, time, method) on the given day,
+// excluding the order currently being (re)booked so re-picking the same slot
+// isn't counted against itself. Prefers the deliveryMethod column, falling
+// back to the note for orders not yet backfilled.
+async function countSlotUsage(
+  tx: Prisma.TransactionClient,
+  range: { gte: Date; lte: Date },
+  time: string,
+  method: SlotMethod,
+  excludeOrderId?: string
+): Promise<number> {
+  const sameDay = await tx.order.findMany({
+    where: {
+      requestedDeliveryDate: { gte: range.gte, lte: range.lte },
+      ...(excludeOrderId ? { NOT: { orderId: excludeOrderId } } : {}),
+    },
+    select: { requestedDeliveryDate: true, note: true, deliveryMethod: true },
+  });
+  return sameDay.filter((o) => {
+    if (!o.requestedDeliveryDate) return false;
+    if (formatSlotTimeFromDate(o.requestedDeliveryDate) !== time) return false;
+    const m =
+      o.deliveryMethod === "home" || o.deliveryMethod === "self"
+        ? (o.deliveryMethod as SlotMethod)
+        : extractMethodFromNote(o.note);
+    return m === method;
+  }).length;
 }
 
 export async function POST(request: NextRequest) {
@@ -44,55 +92,12 @@ export async function POST(request: NextRequest) {
       return apiError(lang, "customer_not_found", 404);
     }
 
-    // Slot-cap enforcement: only when a method was picked (all new
-    // bookings do; unknown/legacy submissions skip). Missing cap row = no
-    // limit; capacity 0 = closed.
-    if (deliveryMethod === "home" || deliveryMethod === "self") {
-      const method: SlotMethod = deliveryMethod;
-      const cap = await prisma.bookingSlotCap.findUnique({
-        where: { time_method: { time, method } },
-        select: { capacity: true },
-      });
-      if (cap) {
-        const range = bangkokDayRange(date);
-        const sameDay = await prisma.order.findMany({
-          where: {
-            requestedDeliveryDate: { gte: range.gte, lte: range.lte },
-            // Don't count the customer's own current booking on the target
-            // order — re-booking the same slot should be a no-op, not a
-            // reason to reject.
-            ...(orderId ? { NOT: { orderId } } : {}),
-          },
-          select: { requestedDeliveryDate: true, note: true },
-        });
-        const used = sameDay.filter((o) => {
-          if (!o.requestedDeliveryDate) return false;
-          if (formatSlotTimeFromDate(o.requestedDeliveryDate) !== time) return false;
-          return extractMethodFromNote(o.note) === method;
-        }).length;
-        if (used >= cap.capacity) {
-          return apiError(lang, "slot_full", 409);
-        }
-      }
-    }
-
     const activityLabels: Record<string, string> = {
       send: "ส่งเสื้อผ้าซัก",
       receive: "รับเสื้อผ้าที่เสร็จคืน (+ส่งเสื้อผ้าใหม่)",
     };
 
-    // Save booking as a note on the latest pending order, or create a standalone record
-    const latestOrder = await prisma.order.findFirst({
-      where: { customerId: customer.id, status: { not: "ส่งแล้ว" } },
-      orderBy: { createdAt: "desc" },
-    });
-
     const bookingInfo = `จองคิว: ${activityLabels[activity] || activity}${orderId ? ` (${orderId})` : ""} วันที่ ${date} เวลา ${time}${methodLabel ? ` วิธี: ${methodLabel}` : ""}${phone ? ` โทร: ${phone}` : ""}${note ? ` หมายเหตุ: ${note}` : ""}`;
-
-    // If orderId specified, update that order; otherwise use latest pending order
-    const targetOrder = orderId
-      ? await prisma.order.findFirst({ where: { orderId, customerId: customer.id } })
-      : latestOrder;
 
     // The customer-facing time slots use "9:00" / "9:30" — pad to 2 digits
     // so the ISO string is valid for new Date().
@@ -100,48 +105,84 @@ export async function POST(request: NextRequest) {
     const isoTime = `${(hh || "0").padStart(2, "0")}:${(mm || "00").padStart(2, "0")}`;
     const requestedDeliveryDate = new Date(`${date}T${isoTime}:00+07:00`);
 
-    if (targetOrder) {
-      // Drop any prior "จองคิว: ..." segment so a re-booking replaces the old
-      // booking info instead of stacking on top of it.
-      const baseNote = stripBookingFromNote(targetOrder.note);
-      await prisma.order.update({
-        where: { id: targetOrder.id },
-        data: {
-          requestedDeliveryDate,
-          note: baseNote ? `${baseNote} | ${bookingInfo}` : bookingInfo,
-        },
-      });
-    } else {
-      // Customer has no pending order in the system yet (e.g. old laundry
-      // the shop is holding from before the software existed, or a fresh
-      // drop-off not yet logged). Create an empty placeholder Order so the
-      // booking shows up in /my "Your bookings" and /dashboard/bookings —
-      // shop will fill in the items when they process the physical laundry.
-      // Retry a couple of times on the rare orderId race with staff creates.
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const latest = await prisma.order.findFirst({
-          orderBy: { id: "desc" },
-          select: { orderId: true },
-        });
-        const nextNum = latest ? (parseInt(latest.orderId.replace(/\D/g, ""), 10) || 0) + 1 : 1;
-        const newOrderId = String(nextNum + attempt).padStart(6, "0");
-        try {
-          await prisma.order.create({
-            data: {
-              orderId: newOrderId,
-              customerId: customer.id,
-              status: "รอซักรีด",
-              totalAmount: 0,
-              requestedDeliveryDate,
-              note: bookingInfo,
-            },
-          });
-          break;
-        } catch (e) {
-          // Unique-constraint collision — try the next number.
-          if (attempt === 4) throw e;
-        }
+    const method: SlotMethod | null =
+      deliveryMethod === "home" || deliveryMethod === "self" ? deliveryMethod : null;
+    const range = bangkokDayRange(date);
+
+    // Enforce the slot cap and persist the booking atomically so two customers
+    // can't both grab the last slot. Serializable isolation makes the
+    // concurrent count+write conflict; we retry a few times on that (P2034)
+    // and on the rare orderId collision (P2002) when creating a placeholder.
+    // Missing cap row = unlimited; capacity 0 = closed.
+    let slotFull = false;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        slotFull = await prisma.$transaction(
+          async (tx) => {
+            if (method) {
+              const cap = await resolveSlotCap(tx, date, time, method);
+              if (cap !== null) {
+                const used = await countSlotUsage(tx, range, time, method, orderId);
+                if (used >= cap) return true; // slot full — reject
+              }
+            }
+
+            // Attach the booking to the given order, else the latest pending
+            // one, else create a placeholder (customer has nothing logged yet).
+            const targetOrder = orderId
+              ? await tx.order.findFirst({ where: { orderId, customerId: customer.id } })
+              : await tx.order.findFirst({
+                  where: { customerId: customer.id, status: { not: "ส่งแล้ว" } },
+                  orderBy: { createdAt: "desc" },
+                });
+
+            if (targetOrder) {
+              // Drop any prior "จองคิว: ..." segment so a re-booking replaces
+              // the old booking info instead of stacking on top of it.
+              const baseNote = stripBookingFromNote(targetOrder.note);
+              await tx.order.update({
+                where: { id: targetOrder.id },
+                data: {
+                  requestedDeliveryDate,
+                  note: baseNote ? `${baseNote} | ${bookingInfo}` : bookingInfo,
+                  ...(method ? { deliveryMethod: method } : {}),
+                },
+              });
+            } else {
+              const latest = await tx.order.findFirst({
+                orderBy: { id: "desc" },
+                select: { orderId: true },
+              });
+              const nextNum = latest ? (parseInt(latest.orderId.replace(/\D/g, ""), 10) || 0) + 1 : 1;
+              const newOrderId = String(nextNum).padStart(6, "0");
+              await tx.order.create({
+                data: {
+                  orderId: newOrderId,
+                  customerId: customer.id,
+                  status: "รอซักรีด",
+                  totalAmount: 0,
+                  requestedDeliveryDate,
+                  deliveryMethod: method,
+                  note: bookingInfo,
+                },
+              });
+            }
+            return false; // booked
+          },
+          { isolationLevel: "Serializable" }
+        );
+        break; // committed
+      } catch (e) {
+        const code =
+          e instanceof Prisma.PrismaClientKnownRequestError ? e.code : "";
+        // P2034: serialization/deadlock; P2002: orderId collision — retry.
+        if ((code === "P2034" || code === "P2002") && attempt < 4) continue;
+        throw e;
       }
+    }
+
+    if (slotFull) {
+      return apiError(lang, "slot_full", 409);
     }
 
     // Notify admin via LINE

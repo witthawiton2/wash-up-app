@@ -94,7 +94,8 @@ export default function LaundryPage() {
     discount: number;
     checkPhotos: string[];
     note: string;
-  }>({ orderId: "", customerId: 0, walkInName: "", items: [{ ...emptyItem }], hangersOwned: 0, hangersBought: 0, discount: 0, checkPhotos: [], note: "" });
+    legacy: boolean;
+  }>({ orderId: "", customerId: 0, walkInName: "", items: [{ ...emptyItem }], hangersOwned: 0, hangersBought: 0, discount: 0, checkPhotos: [], note: "", legacy: false });
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [viewCheckPhotos, setViewCheckPhotos] = useState<string[] | null>(null);
   const checkPhotoRef = useRef<HTMLInputElement>(null);
@@ -209,6 +210,7 @@ export default function LaundryPage() {
       discount: 0,
       checkPhotos: [],
       note: "",
+      legacy: false,
     });
     setOriginalItems([]);
     setEditingOrderId(null);
@@ -233,6 +235,7 @@ export default function LaundryPage() {
       discount: o.discount || 0,
       checkPhotos: photos,
       note: o.note,
+      legacy: false,
     });
     setOriginalItems(o.items.map((i) => ({ ...i })));
     setCustomerSearch(o.customer);
@@ -333,6 +336,7 @@ export default function LaundryPage() {
             discount: editing.discount,
             checkPhotos: editing.checkPhotos.length > 0 ? JSON.stringify(editing.checkPhotos) : null,
             note: editing.note,
+            legacy: editing.legacy || undefined,
           }),
         });
         if (res.ok) {
@@ -344,9 +348,10 @@ export default function LaundryPage() {
           // Refresh data in background — don't block modal close
           Promise.all([fetchOrders(), fetchCustomers()]).catch(() => {});
 
-          // Auto send LINE
+          // Legacy bills are already settled — the server sends its own
+          // "ready to pick up" nudge, so skip the receipt LINE and auto-print.
           const cust = editing.customerId ? customers.find((c) => c.id === editing.customerId) : null;
-          if (cust?.lineUserId) {
+          if (!editing.legacy && cust?.lineUserId) {
             fetch("/api/line/send-receipt", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -358,7 +363,7 @@ export default function LaundryPage() {
           }
 
           // Auto print (if enabled)
-          if (autoPrint) {
+          if (autoPrint && !editing.legacy) {
             const subForPrint = calcTotal(cleanedItems) + editing.hangersBought * 5;
             const netTotal = editing.discount > 0
               ? parseFloat((subForPrint * (1 - editing.discount / 100)).toFixed(2))
@@ -911,6 +916,24 @@ ${settings.receiptHeader ? `<div class="center" style="margin-top:6px;font-size:
             )}
           </div>
 
+          {/* บิลเก่า (ก่อนเข้าระบบ) — เฉพาะตอนเพิ่มใหม่ */}
+          {!editingOrderId && (
+            <label className="flex items-start gap-2.5 p-3 rounded-lg border border-amber-200 bg-amber-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={editing.legacy}
+                onChange={(e) => setEditing({ ...editing, legacy: e.target.checked })}
+                className="mt-0.5 w-4 h-4"
+              />
+              <span className="text-sm">
+                <span className="font-medium text-amber-800">บิลเก่า (ก่อนเข้าระบบ)</span>
+                <span className="block text-xs text-amber-700 mt-0.5">
+                  บันทึกเป็นสถานะ &quot;พร้อมส่ง&quot; ทันที ไม่ตัดแพ็คเกจ ไม่คิดเงิน — ให้ลูกค้าจองรับคืนได้เลย
+                </span>
+              </span>
+            </label>
+          )}
+
           {/* Items list */}
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -1099,7 +1122,7 @@ ${settings.receiptHeader ? `<div class="center" style="margin-top:6px;font-size:
                 </>
               );
             })()}
-            {deductionDiff !== 0 && selectedCustomer && (
+            {!editing.legacy && deductionDiff !== 0 && selectedCustomer && (
               <div className={`flex justify-between items-center px-2 py-2 rounded-lg ${deductionDiff > 0 ? "bg-amber-50" : "bg-green-50"}`}>
                 <span className={`text-sm font-medium ${deductionDiff > 0 ? "text-amber-700" : "text-green-700"}`}>
                   {editingOrderId ? "ตัดเพิ่ม/คืนแพ็คเกจ" : "ตัดจากแพ็คเกจ"}
@@ -1109,7 +1132,7 @@ ${settings.receiptHeader ? `<div class="center" style="margin-top:6px;font-size:
                 </span>
               </div>
             )}
-            {deductionDiff === 0 && editingOrderId && newDeduction > 0 && selectedCustomer && (
+            {!editing.legacy && deductionDiff === 0 && editingOrderId && newDeduction > 0 && selectedCustomer && (
               <div className="flex justify-between items-center px-2 py-2 bg-slate-50 rounded-lg">
                 <span className="text-sm font-medium text-slate-500">
                   แพ็คเกจไม่เปลี่ยนแปลง

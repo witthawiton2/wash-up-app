@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderId, customerId, walkInName, items, note, hangersOwned, hangersBought, discount, checkPhotos } = body;
+    const { orderId, customerId, walkInName, items, note, hangersOwned, hangersBought, discount, checkPhotos, legacy } = body;
 
     if (!orderId || !items?.length) {
       return NextResponse.json(
@@ -182,6 +182,52 @@ export async function POST(request: NextRequest) {
         { error: "customerId or walkInName is required" },
         { status: 400 }
       );
+    }
+
+    // Legacy bill: a paper/pre-system order the shop is entering just so the
+    // customer can book its pickup. It's already settled, so we DON'T charge,
+    // DON'T touch the package balance, and drop it straight into "พร้อมส่ง".
+    if (legacy) {
+      const legacyNote = note ? `บิลเก่า (ก่อนเข้าระบบ) | ${note}` : "บิลเก่า (ก่อนเข้าระบบ)";
+      const order = await createOrderWithUniqueId(orderId, {
+        customerId: customerId || null,
+        walkInName: customerId ? null : (walkInName || null),
+        status: "พร้อมส่ง",
+        totalAmount: 0,
+        hangersOwned: hangersOwned || 0,
+        hangersBought: hangersBought || 0,
+        discount: 0,
+        checkPhotos: checkPhotos || null,
+        note: legacyNote,
+        paymentStatus: "paid",
+        paidAt: new Date(),
+        items: {
+          create: items.map(
+            (i: { name: string; qty: number; price: number }) => ({
+              itemName: i.name,
+              quantity: i.qty,
+              price: i.price,
+              total: i.qty * i.price,
+            })
+          ),
+        },
+      });
+
+      // Nudge the customer to book a pickup for the finished bill.
+      if (order.customer?.lineUserId) {
+        const baseUrl = getBaseUrl();
+        pushTextMessage(
+          order.customer.lineUserId,
+          `📦 ออเดอร์ ${order.orderId} พร้อมให้รับคืนแล้วครับ\n\nกดจองเวลารับ-ส่งได้เลย 🚚\n${baseUrl}/my?tab=booking`
+        ).catch((err) => console.error("Failed to send LINE legacy-ready notice:", err));
+        sendCustomerPush(order.customer.id, {
+          title: "พร้อมรับคืนแล้ว",
+          body: `ออเดอร์ ${order.orderId} — กดจองเวลารับ-ส่ง`,
+          url: "/my?tab=booking",
+        }).catch(() => {});
+      }
+
+      return NextResponse.json({ ...order, packageDeducted: 0, legacy: true });
     }
 
     const hBought = hangersBought || 0;

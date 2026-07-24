@@ -19,11 +19,13 @@ interface Payment {
 
 const filters = ["ทั้งหมด", "รอตรวจสอบ", "ยังไม่ชำระ", "ชำระแล้ว"];
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
-const firstOfMonthIso = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
-};
+// Wall-clock date in Bangkok as YYYY-MM-DD. Using UTC here (toISOString)
+// would report "yesterday" during Thai early-morning hours and hide orders
+// paid today from the paid-view date filter.
+const bangkokIso = (d = new Date()) =>
+  d.toLocaleDateString("en-CA", { timeZone: "Asia/Bangkok" });
+const todayIso = () => bangkokIso();
+const firstOfMonthIso = () => `${bangkokIso().slice(0, 7)}-01`;
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);

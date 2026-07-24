@@ -23,6 +23,9 @@ export async function GET(request: NextRequest) {
       }
     } else {
       where.paymentStatus = { not: "paid" };
+      // Zero-total bills carry nothing to pay — keep them out of the
+      // "needs payment" list entirely.
+      where.totalAmount = { gt: 0 };
       // Bound non-paid view to the last 60 days so the list doesn't grow
       // forever with stale orders.
       const from = new Date();

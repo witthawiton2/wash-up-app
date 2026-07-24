@@ -31,6 +31,7 @@ const STR: Record<Lang, Record<string, string>> = {
     paid_ok: "ชำระเงินเรียบร้อยแล้ว",
     slip_sent: "ส่งสลิปแล้ว — รอตรวจสอบ",
     upload_payment: "💳 อัพโหลดสลิปการชำระ",
+    no_payment_needed: "ไม่มียอดต้องชำระ",
     top_up_package: "เติมแพ็คเกจ",
     renew_submitted_msg: "ส่งคำขอเติมแพ็คเกจสำเร็จ รอแอดมินยืนยัน",
     waiting_admin: "รอแอดมินอนุมัติ",
@@ -131,6 +132,7 @@ const STR: Record<Lang, Record<string, string>> = {
     paid_ok: "Payment confirmed",
     slip_sent: "Slip submitted — waiting for review",
     upload_payment: "💳 Upload payment slip",
+    no_payment_needed: "No payment required",
     top_up_package: "Top up package",
     renew_submitted_msg: "Renewal request submitted — waiting for admin",
     waiting_admin: "Waiting for admin",
@@ -989,6 +991,8 @@ export default function MyPage() {
                           <span>⏳</span>
                           <span className="font-medium">{s.slip_sent}</span>
                         </div>
+                      ) : o.totalAmount <= 0 ? (
+                        <div className="text-xs text-slate-400 px-1">{s.no_payment_needed}</div>
                       ) : (
                         <button
                           onClick={(e) => { e.preventDefault(); openPayModal(o.orderId); }}

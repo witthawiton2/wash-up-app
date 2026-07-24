@@ -29,6 +29,7 @@ const STR: Record<Lang, Record<string, string>> = {
     paid_ok: "ชำระเงินเรียบร้อยแล้ว",
     slip_sent: "ส่งสลิปแล้ว — รอตรวจสอบ",
     not_paid: "ยังไม่ชำระ",
+    no_payment_needed: "ไม่มียอดต้องชำระ",
     view_slip: "ดูสลิปที่ส่ง",
     view_receipt: "🧾 ดูใบเสร็จ",
     download: "บันทึก",
@@ -63,6 +64,7 @@ const STR: Record<Lang, Record<string, string>> = {
     paid_ok: "Payment confirmed",
     slip_sent: "Slip submitted — under review",
     not_paid: "Unpaid",
+    no_payment_needed: "No payment required",
     view_slip: "View submitted slip",
     view_receipt: "🧾 View receipt",
     download: "Save",
@@ -387,6 +389,8 @@ export default function OrderDetailPage({
               <span>⏳</span>
               <span className="font-medium">{s.slip_sent}</span>
             </div>
+          ) : order.totalAmount <= 0 ? (
+            <div className="text-sm text-slate-400 px-1">{s.no_payment_needed}</div>
           ) : (
             <div className="text-sm text-slate-500 px-1">{s.not_paid}</div>
           )}
